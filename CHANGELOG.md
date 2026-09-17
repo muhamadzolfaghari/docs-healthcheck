@@ -1,0 +1,57 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+---
+
+## [2.0.0] - 2026-09-18
+
+### 🚀 Major Transformation & Rebranding
+- Rebranded repository and npm package from `readme-toc-generator` to `docs-healthcheck`.
+- Preserved full commit lineage and authorship from original project.
+- Complete architectural redesign into a production-grade TypeScript package with dual ESM/CJS distribution and full type definitions.
+
+### ✨ Added
+- **Core Documentation Quality Gate:**
+  - Heading structure validation: missing H1, multiple H1s, hierarchy skips (e.g. H1 -> H3), duplicate headings.
+  - Link & anchor validation: catches broken local hash anchors (`#anchor`) and missing relative file links (`./docs/guide.md`).
+  - Cross-file anchor resolution: checks whether anchors exist inside referenced markdown files.
+- **Enhanced Table of Contents Generator:**
+  - Full GitHub Flavored Markdown (GFM) slug compatibility.
+  - Full support for Persian/Arabic/Unicode alphabets, emojis, and numbers.
+  - In-place marker replacement (`<!-- TOC START -->` ... `<!-- TOC END -->`) or standalone CLI formatting.
+  - Configurable minimum/maximum heading depth, ordered/bullet list modes, custom title headings.
+- **Repository Health Score Engine:**
+  - Automated scanning of repository standards (`README.md`, `LICENSE`, `CHANGELOG.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `docs/`, `examples/`).
+  - Composite 0–100 documentation quality score with actionable suggestions.
+- **Modern CLI:**
+  - `docs-healthcheck .` (full workspace health gate)
+  - `docs-healthcheck check <file>` (single-file validation)
+  - `docs-healthcheck toc <file> [--write]` (TOC insertion)
+  - Formats: Pretty Terminal (`picocolors`), `--json`, `--markdown` for GitHub Actions PR comments.
+  - Exit codes: 0 (pass), 1 (failed validation or below threshold score).
+- **Programmatic TypeScript API:**
+  - `checkDocumentation(path, options)`
+  - `validateMarkdown(content, options)`
+  - `generateToc(headingsOrMarkdown, options)`
+  - `updateToc(content, options)`
+  - `slugify(text)` and `Slugger` class
+- **GitHub Action Wrapper:**
+  - Ready-to-use composite action in `.github/action.yml`.
+  - CI workflows for automated multi-OS testing and semantic release.
+
+---
+
+## [1.1.1] - 2024-07-06
+- Added forbidden characters filtering for anchor links.
+
+## [1.1.0] - 2024-07-06
+- Added support for numbered headings.
+- Improved error handling for interactive file input.
+- Added support for nested headings in table of contents.
+
+## [1.0.0] - 2024-07-05
+- Initial release of `readme-toc-generator`.

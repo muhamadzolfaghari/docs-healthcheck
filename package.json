@@ -1,20 +1,79 @@
 {
-  "name": "readme-toc-generator",
-  "version": "1.1.1",
-  "description": "A generator for create table of contents for markdown files.",
-  "main": "index.js",
+  "name": "docs-healthcheck",
+  "version": "2.0.0",
+  "description": "Documentation quality gate for Markdown repositories. Validate structure, TOC, links, anchors, and documentation health.",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "docs-healthcheck": "./bin/docs-healthcheck.js"
+  },
+  "files": [
+    "dist",
+    "bin",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
   "scripts": {
-    "start": "node index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit",
+    "check": "node ./bin/docs-healthcheck.js .",
+    "prepublishOnly": "npm run build && npm run test"
+  },
+  "keywords": [
+    "markdown",
+    "documentation",
+    "healthcheck",
+    "toc",
+    "toc-generator",
+    "table-of-contents",
+    "linter",
+    "quality-gate",
+    "links-validator",
+    "anchor-checker",
+    "headings-validator",
+    "ci-cd",
+    "github-actions"
+  ],
+  "author": "Muhamad Zolfaghari",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/muhamadzolfaghari/docs-healthcheck.git"
+  },
+  "bugs": {
+    "url": "https://github.com/muhamadzolfaghari/docs-healthcheck/issues"
+  },
+  "homepage": "https://github.com/muhamadzolfaghari/docs-healthcheck#readme",
+  "dependencies": {
+    "commander": "^12.1.0",
+    "picocolors": "^1.1.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.10",
-    "prettier": "^3.3.2"
+    "@vitest/coverage-v8": "^2.1.1",
+    "tsup": "^8.2.4",
+    "typescript": "^5.5.4",
+    "vitest": "^2.1.1"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "inquirer": "^10.0.0"
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

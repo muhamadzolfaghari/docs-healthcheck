@@ -1,0 +1,35 @@
+name: "Docs Healthcheck"
+description: "Documentation quality gate for Markdown repositories. Validate structure, TOC, links, anchors, and health score."
+author: "Muhamad Zolfaghari"
+branding:
+  icon: "check-circle"
+  color: "green"
+
+inputs:
+  path:
+    description: "Directory or file to check"
+    required: false
+    default: "."
+  ci:
+    description: "Fail build on any error"
+    required: false
+    default: "true"
+  strict:
+    description: "Treat warnings as errors"
+    required: false
+    default: "false"
+  min-score:
+    description: "Minimum acceptable health score (0-100)"
+    required: false
+    default: "70"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Run docs-healthcheck
+      shell: bash
+      run: |
+        npx --yes docs-healthcheck "${{ inputs.path }}" \
+          ${{ inputs.ci == 'true' && '--ci' || '' }} \
+          ${{ inputs.strict == 'true' && '--strict' || '' }} \
+          --min-score "${{ inputs.min-score }}"
