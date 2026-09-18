@@ -4,6 +4,7 @@ import { checkReadme } from "../../src/checks/readme.js";
 import { checkChangelog } from "../../src/checks/changelog.js";
 import { checkContributing, checkCodeOfConduct } from "../../src/checks/contributing.js";
 import { checkLicense, checkDocsDirectory, checkExamplesDirectory } from "../../src/checks/metadata.js";
+import { checkPackageJson } from "../../src/checks/package.js";
 
 describe("Repository Checks Unit Tests", () => {
   const rootDir = path.resolve(__dirname, "../../");
@@ -15,6 +16,14 @@ describe("Repository Checks Unit Tests", () => {
 
     const emptyCheck = checkReadme(emptyDir);
     expect(emptyCheck.status).toBe("missing");
+  });
+
+  it("checks package.json validation", () => {
+    const rootPkg = checkPackageJson(rootDir);
+    expect(rootPkg.status).toBe("found");
+
+    const emptyPkg = checkPackageJson(emptyDir);
+    expect(emptyPkg.status).toBe("warning");
   });
 
   it("checks changelog in root and empty directory", () => {
@@ -41,3 +50,4 @@ describe("Repository Checks Unit Tests", () => {
     expect(examples.status).toBe("warning");
   });
 });
+

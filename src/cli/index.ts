@@ -26,8 +26,9 @@ export function runCli(argv = process.argv): void {
     .description("Full documentation health check for repository or directory (default)")
     .option("--json", "Output results in JSON format")
     .option("--markdown", "Output results in GitHub Markdown format")
+    .option("--verbose", "Show detailed verbose diagnostic information")
     .option("--ci", "Run in CI mode with strict exit code on any errors")
-    .option("--strict", "Treat warnings as errors")
+    .option("--strict", "Treat warnings as errors (exit code 2)")
     .option("--min-score <score>", "Minimum acceptable documentation health score (0-100)", "70")
     .option("--silent", "Suppress stdout and only use exit code")
     .action((targetPath = ".", options = {}) => {
@@ -47,10 +48,20 @@ export function runCli(argv = process.argv): void {
         }
       }
 
-      if (!report.passed) {
-        process.exit(1);
+      // Exit codes: 0 = Healthy, 1 = Warnings, 2 = Errors / Failed
+      if (report.totalErrors > 0 || !report.passed) {
+        process.exit(2);
+      } else if (report.totalWarnings > 0) {
+        if (options.strict) {
+          process.exit(2);
+        } else {
+          process.exit(1);
+        }
+      } else {
+        process.exit(0);
       }
     });
+
 
   // check Command: checks a single markdown file
   program
@@ -96,10 +107,20 @@ export function runCli(argv = process.argv): void {
         console.log(renderTerminalReport(report));
       }
 
-      if (!report.passed) {
-        process.exit(1);
+      // Exit codes: 0 = Healthy, 1 = Warnings, 2 = Errors / Failed
+      if (report.totalErrors > 0 || !report.passed) {
+        process.exit(2);
+      } else if (report.totalWarnings > 0) {
+        if (options.strict) {
+          process.exit(2);
+        } else {
+          process.exit(1);
+        }
+      } else {
+        process.exit(0);
       }
     });
+
 
   // toc Command: generates or updates TOC
   program

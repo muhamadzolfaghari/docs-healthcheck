@@ -81,6 +81,42 @@ export function validateHeadings(
     }
   }
 
+  // 5. Check Empty Sections
+  const rawLines = doc.raw.split(/\r?\n/);
+  for (let i = 0; i < doc.headings.length; i++) {
+    const currentHeading = doc.headings[i];
+    const nextHeading = doc.headings[i + 1];
+    
+    // Ignore parent section headings that immediately introduce sub-sections (e.g., # Main followed by ## Sub)
+    if (nextHeading && nextHeading.level > currentHeading.level) {
+      continue;
+    }
+
+    const startLineIndex = currentHeading.line; // 1-indexed, so next line in 0-indexed array is currentHeading.line
+    const endLineIndex = nextHeading ? nextHeading.line - 1 : rawLines.length;
+
+    let hasContent = false;
+    for (let l = startLineIndex; l < endLineIndex; l++) {
+      const lineText = rawLines[l]?.trim() ?? "";
+      // Ignore empty lines and TOC marker comments
+      if (lineText.length > 0 && !/^<!--.*-->$/.test(lineText)) {
+        hasContent = true;
+        break;
+      }
+    }
+
+    if (!hasContent) {
+      issues.push({
+        ruleId: "heading-empty-section",
+        severity: "warning",
+        message: `Empty section under heading "${currentHeading.text}" with no content.`,
+        file: filePath,
+        line: currentHeading.line,
+        suggestion: `Add documentation content under this heading or remove the empty heading.`,
+      });
+    }
+  }
+
   return issues;
 }
 

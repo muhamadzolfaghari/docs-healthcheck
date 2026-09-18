@@ -5,8 +5,10 @@ export type ValidationRuleId =
   | "heading-multiple-h1"
   | "heading-hierarchy"
   | "heading-duplicate"
+  | "heading-empty-section"
   | "anchor-broken"
   | "link-missing-file";
+
 
 export interface HeadingNode {
   level: number;

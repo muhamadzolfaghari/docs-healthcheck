@@ -47,6 +47,21 @@ Another install
     expect(issues.some((i) => i.ruleId === "heading-duplicate")).toBe(true);
   });
 
+  it("detects empty sections", () => {
+    const md = `
+# Main Title
+Intro
+
+## Empty Heading Section
+
+## Next Section
+Content here
+`;
+    const doc = parseMarkdown(md);
+    const issues = validateHeadings(doc, "test.md");
+    expect(issues.some((i) => i.ruleId === "heading-empty-section")).toBe(true);
+  });
+
   it("detects broken internal anchors", () => {
     const md = `
 # Main Title

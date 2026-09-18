@@ -1,0 +1,10 @@
+{
+  "name": "healthy-fixture",
+  "version": "1.0.0",
+  "description": "Healthy test fixture for docs-healthcheck",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/example/healthy-fixture.git"
+  }
+}

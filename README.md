@@ -33,6 +33,7 @@
 
 ## Table of Contents
 
+- [Table of Contents](#table-of-contents)
 - [Features](#features)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
@@ -42,6 +43,8 @@
 - [CLI Reference](#cli-reference)
   - [Global Options & Flags](#global-options--flags)
   - [Commands](#commands)
+    - [docs-healthcheck toc](#docs-healthcheck-toc)
+  - [Exit Codes](#exit-codes)
 - [Validation Rules](#validation-rules)
 - [Programmatic API](#programmatic-api)
   - [Check Documentation](#check-documentation)
@@ -51,6 +54,7 @@
   - [As a GitHub Action](#as-a-github-action)
   - [In GitHub Actions Workflow](#in-github-actions-workflow)
 - [Unicode & RTL Support](#unicode--rtl-support)
+- [Future Roadmap](#future-roadmap)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -167,6 +171,16 @@ Options:
 
 ---
 
+### Exit Codes
+
+| Code | Status | Meaning |
+| :---: | :--- | :--- |
+| `0` | **Healthy** | All documentation checks passed with zero errors or warnings (or within warning tolerance) |
+| `1` | **Warnings** | Passed with non-blocking warnings (e.g. missing optional docs or skipped heading depths) |
+| `2` | **Errors** | Failed with critical errors (broken links, missing required files, or score below threshold) |
+
+---
+
 ## Validation Rules
 
 | Rule ID | Severity | Description |
@@ -175,8 +189,10 @@ Options:
 | `heading-multiple-h1` | `warning` | Document contains more than one top-level `# Title` |
 | `heading-hierarchy` | `warning` | Heading levels jump unexpectedly (e.g. `H1` followed directly by `H3`) |
 | `heading-duplicate` | `info` | Identical heading titles causing anchor collision or ambiguity |
+| `heading-empty-section` | `warning` | Heading has no body content or description under it |
 | `anchor-broken` | `error` | Internal link `[Text](#anchor)` targets non-existent section |
 | `link-missing-file` | `error` | Relative markdown link references a file that does not exist on disk |
+
 
 ---
 
@@ -281,6 +297,14 @@ Generates exact GitHub-compliant slugs:
 
 ---
 
+## Future Roadmap
+
+- 🎯 **v0.2:** External URL liveness validation, custom configuration files (`.docsrc.json` / `docs-healthcheck.config.js`), and documentation completeness heuristics.
+- 🚀 **v0.3:** Official GitHub Action release on GitHub Marketplace with PR inline annotations and automated summary comments.
+- 🤖 **v0.4:** Model Context Protocol (MCP) Server integration allowing AI agents (like Claude Desktop and Gemini) to query documentation quality and auto-apply suggested fixes.
+
+---
+
 ## Contributing
 
 Contributions are always welcome! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md).
@@ -290,3 +314,4 @@ Contributions are always welcome! Please see [CONTRIBUTING.md](./CONTRIBUTING.md
 ## License
 
 MIT © [Muhamad Zolfaghari](https://github.com/muhamadzolfaghari)
+

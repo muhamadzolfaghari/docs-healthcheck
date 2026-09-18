@@ -3,6 +3,7 @@ import { checkReadme } from "./readme.js";
 import { checkLicense, checkDocsDirectory, checkExamplesDirectory } from "./metadata.js";
 import { checkChangelog } from "./changelog.js";
 import { checkContributing, checkCodeOfConduct } from "./contributing.js";
+import { checkPackageJson } from "./package.js";
 
 export function evaluateRepoHealth(rootDir: string): {
   items: RepoHealthCheckItem[];
@@ -11,6 +12,7 @@ export function evaluateRepoHealth(rootDir: string): {
   const items: RepoHealthCheckItem[] = [
     checkReadme(rootDir),
     checkLicense(rootDir),
+    checkPackageJson(rootDir),
     checkChangelog(rootDir),
     checkContributing(rootDir),
     checkCodeOfConduct(rootDir),
@@ -38,3 +40,4 @@ export function evaluateRepoHealth(rootDir: string): {
     score,
   };
 }
+
