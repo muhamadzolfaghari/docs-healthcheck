@@ -13,10 +13,26 @@ export function extractHeadings(markdown: string): HeadingNode[] {
   let inCodeBlock = false;
   let codeFenceChar = "";
   let inHtmlComment = false;
+  let inTocBlock = false;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmed = line.trim();
+
+    // Track TOC marker blocks
+    if (!inCodeBlock) {
+      if (/^\s*<!--\s*(?:TOC\s+START|toc|START\s+doctoc|TOC)\s*-->\s*$/i.test(line)) {
+        inTocBlock = true;
+        continue;
+      }
+      if (inTocBlock) {
+        if (/<!--\s*(?:TOC\s+END|\/toc|END\s+doctoc|\/TOC)\s*-->/i.test(trimmed)) {
+          inTocBlock = false;
+        }
+        continue;
+      }
+    }
+
 
     // Track HTML comment blocks
     if (!inCodeBlock) {
@@ -34,6 +50,7 @@ export function extractHeadings(markdown: string): HeadingNode[] {
         continue;
       }
     }
+
 
     // Track fenced code blocks (``` or ~~~)
     const codeBlockMatch = line.match(/^(\s*)(`{3,}|~{3,})/);

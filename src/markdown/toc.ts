@@ -34,8 +34,12 @@ export function generateTocMarkdown(
 ): string {
   const opts = { ...DEFAULT_TOC_OPTIONS, ...options };
   const filteredHeadings = headings.filter(
-    (h) => h.level >= opts.minDepth && h.level <= opts.maxDepth
+    (h) =>
+      h.level >= opts.minDepth &&
+      h.level <= opts.maxDepth &&
+      !/^(table\s+of\s+contents|toc|contents|فهرست\s+مطالب|فهرست)$/i.test(h.text.trim())
   );
+
 
   if (filteredHeadings.length === 0) {
     return "";
@@ -87,13 +91,13 @@ export function updateTocInContent(
   const headings = extractHeadings(content);
   const tocBody = generateTocMarkdown(headings, options);
 
-  // Check if markers exist
-  const markerRegex = /(<!--\s*(?:TOC\s+START|toc|START\s+doctoc|TOC)\s*-->)([\s\S]*?)(<!--\s*(?:TOC\s+END|\/toc|END\s+doctoc|\/TOC)\s*-->)/i;
+  // Check if standalone markers exist on their own lines
+  const markerRegex = /(^[ \t]*<!--\s*(?:TOC\s+START|toc|START\s+doctoc|TOC)\s*-->[ \t]*\r?\n)([\s\S]*?)(^[ \t]*<!--\s*(?:TOC\s+END|\/toc|END\s+doctoc|\/TOC)\s*-->[ \t]*$)/im;
   const match = content.match(markerRegex);
 
   if (match) {
-    const startTag = match[1];
-    const endTag = match[3];
+    const startTag = match[1].trim();
+    const endTag = match[3].trim();
     const replacement = `${startTag}\n\n${tocBody}\n\n${endTag}`;
     const updatedContent = content.replace(markerRegex, replacement);
 
@@ -104,6 +108,7 @@ export function updateTocInContent(
       headingsCount: headings.length,
     };
   }
+
 
   // If no markers exist, find insertion point (after first H1 or at the top)
   const lines = content.split(/\r?\n/);
