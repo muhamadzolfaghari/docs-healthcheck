@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="description" content="docs-healthcheck browser playground — analyze and safely repair Markdown directly in your browser." />
+  <title>docs-healthcheck Playground</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="https://github.com/muhamadzolfaghari/docs-healthcheck" target="_blank" rel="noreferrer">
+      <span class="brand-mark">✓</span>
+      <span>docs-healthcheck</span>
+    </a>
+    <div class="top-actions">
+      <span class="privacy-pill">Runs locally in your browser</span>
+      <a class="github-link" href="https://github.com/muhamadzolfaghari/docs-healthcheck" target="_blank" rel="noreferrer">GitHub ↗</a>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section class="hero">
+      <div>
+        <p class="eyebrow">ONLINE MARKDOWN HEALTHCHECK</p>
+        <h1>Break Markdown. Find the problem. Fix the safe parts.</h1>
+        <p class="hero-copy">
+          Paste Markdown or open a local <code>.md</code> file. The playground checks headings,
+          anchors, duplicate/empty sections, and managed TOCs without uploading your content.
+        </p>
+      </div>
+      <div class="score-card" aria-live="polite">
+        <span class="score-label">Browser score</span>
+        <strong id="score">—</strong>
+        <span id="scoreStatus" class="score-status">Not analyzed</span>
+      </div>
+    </section>
+
+    <section class="notice">
+      <strong>Browser scope:</strong>
+      single-file Markdown rules only. For repository-wide relative files, cross-file anchors,
+      standards, CI gates, and revert journaling, use <code>npx docs-healthcheck</code>.
+    </section>
+
+    <section class="toolbar" aria-label="Playground actions">
+      <button id="sampleBtn" class="button secondary" type="button">Load broken demo</button>
+      <button id="uploadBtn" class="button secondary" type="button">Open Markdown file</button>
+      <input id="fileInput" type="file" accept=".md,.markdown,text/markdown,text/plain" hidden />
+      <button id="analyzeBtn" class="button primary" type="button">Analyze</button>
+      <button id="fixBtn" class="button success" type="button">Fix SAFE issues</button>
+      <button id="restoreBtn" class="button secondary" type="button">Restore before fix</button>
+      <span class="toolbar-spacer"></span>
+      <button id="copyBtn" class="button ghost" type="button">Copy Markdown</button>
+      <button id="downloadBtn" class="button ghost" type="button">Save .md</button>
+    </section>
+
+    <section class="workspace">
+      <div class="editor-panel panel">
+        <div class="panel-head">
+          <div>
+            <span class="panel-kicker">MARKDOWN</span>
+            <strong id="fileName">README.md</strong>
+          </div>
+          <span id="lineCount" class="muted">0 lines</span>
+        </div>
+        <textarea id="editor" spellcheck="false" aria-label="Markdown editor"></textarea>
+      </div>
+
+      <aside class="results-panel panel">
+        <div class="panel-head">
+          <div>
+            <span class="panel-kicker">HEALTH REPORT</span>
+            <strong id="issueSummary">Run analysis</strong>
+          </div>
+          <div class="legend" aria-label="Safety legend">
+            <span class="badge safe">SAFE</span>
+            <span class="badge confirm">CONFIRM</span>
+            <span class="badge manual">MANUAL</span>
+          </div>
+        </div>
+        <div id="issues" class="issues empty-state">
+          <div class="empty-icon">⌁</div>
+          <p>Analyze the Markdown to see documentation issues and deterministic repair suggestions.</p>
+        </div>
+      </aside>
+    </section>
+
+    <section class="how-it-works">
+      <h2>Same safety model, browser-sized scope</h2>
+      <div class="steps">
+        <article><span>01</span><h3>Analyze</h3><p>Read-only checks first. Your Markdown never leaves this tab.</p></article>
+        <article><span>02</span><h3>Classify</h3><p>Repairs are separated into SAFE, CONFIRM, and MANUAL.</p></article>
+        <article><span>03</span><h3>Repair</h3><p>The green button applies only deterministic SAFE fixes.</p></article>
+        <article><span>04</span><h3>Re-check</h3><p>The playground immediately analyzes the repaired Markdown again.</p></article>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>docs-healthcheck browser playground</span>
+    <span id="status" role="status" aria-live="polite">Ready.</span>
+  </footer>
+
+  <script src="./app.js"></script>
+</body>
+</html>
