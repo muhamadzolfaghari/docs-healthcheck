@@ -9,47 +9,61 @@ on:
     paths:
       - ".github/workflows/release.yml"
       - "package.json"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write
+
+concurrency:
+  group: docs-healthcheck-release
+  cancel-in-progress: false
 
 jobs:
   release:
     name: Publish and Verify
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      id-token: write
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: "24"
           registry-url: "https://registry.npmjs.org"
+          package-manager-cache: false
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Typecheck, build, and test
-        run: |
-          npm run lint
-          npm run prepublishOnly
+      - name: Typecheck
+        run: npm run lint
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build package
+        run: npm run build
 
       - name: Verify package contents
         run: npm pack --dry-run
 
-      - name: Check npm publication state
+      - name: Resolve npm publication state
         id: npm-state
         shell: bash
         run: |
-          VERSION="$(node -p "require('./package.json').version")"
-          PACKAGE="$(node -p "require('./package.json').name")"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "package=$PACKAGE" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
 
-          if npm view "$PACKAGE@$VERSION" version --json >/tmp/npm-version.json 2>/dev/null; then
-            REPOSITORY="$(npm view "$PACKAGE@$VERSION" repository.url --json 2>/dev/null || true)"
+          PACKAGE="$(node -p "require('./package.json').name")"
+          VERSION="$(node -p "require('./package.json').version")"
+
+          echo "package=$PACKAGE" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+          if npm view "$PACKAGE@$VERSION" version --registry=https://registry.npmjs.org >/dev/null 2>&1; then
+            REPOSITORY="$(npm view "$PACKAGE@$VERSION" repository.url --json --registry=https://registry.npmjs.org 2>/dev/null || true)"
             echo "npm already contains $PACKAGE@$VERSION"
             echo "Published repository metadata: $REPOSITORY"
 
@@ -58,27 +72,56 @@ jobs:
               exit 1
             fi
 
-            echo "published=true" >> "$GITHUB_OUTPUT"
+            echo "version_published=true" >> "$GITHUB_OUTPUT"
           else
-            echo "$PACKAGE@$VERSION is not published yet."
-            echo "published=false" >> "$GITHUB_OUTPUT"
+            echo "version_published=false" >> "$GITHUB_OUTPUT"
           fi
 
+          if npm view "$PACKAGE" name --registry=https://registry.npmjs.org >/dev/null 2>&1; then
+            echo "package_exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "package_exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate first-publish credentials
+        if: steps.npm-state.outputs.version_published != 'true' && steps.npm-state.outputs.package_exists != 'true'
+        shell: bash
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NPM_TOKEN" ]; then
+            echo "::error::docs-healthcheck has not been published to npm yet. npm Trusted Publishing can only be configured after the package exists. Add a short-lived repository secret named NPM_TOKEN for the first publish only, then remove it after configuring npm Trusted Publishing for release.yml."
+            exit 1
+          fi
+          echo "Bootstrap npm credential is configured."
+
       - name: Publish package
-        if: steps.npm-state.outputs.published != 'true'
-        run: npm publish --provenance --access public
+        if: steps.npm-state.outputs.version_published != 'true'
+        shell: bash
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [ -n "${NODE_AUTH_TOKEN:-}" ]; then
+            echo "Publishing with bootstrap npm token."
+          else
+            echo "No npm token configured; publishing with GitHub OIDC trusted publishing."
+          fi
+
+          npm publish --provenance --access public
 
       - name: Verify npm registry propagation
         shell: bash
         run: |
+          set -euo pipefail
+
           PACKAGE="${{ steps.npm-state.outputs.package }}"
           VERSION="${{ steps.npm-state.outputs.version }}"
 
           for attempt in {1..30}; do
-            PUBLISHED_VERSION="$(npm view "$PACKAGE@$VERSION" version --json 2>/dev/null | tr -d '"' || true)"
-            REPOSITORY="$(npm view "$PACKAGE@$VERSION" repository.url --json 2>/dev/null || true)"
+            PUBLISHED_VERSION="$(npm view "$PACKAGE@$VERSION" version --registry=https://registry.npmjs.org 2>/dev/null || true)"
+            REPOSITORY="$(npm view "$PACKAGE@$VERSION" repository.url --json --registry=https://registry.npmjs.org 2>/dev/null || true)"
 
             if [[ "$PUBLISHED_VERSION" == "$VERSION" && "$REPOSITORY" == *"muhamadzolfaghari/docs-healthcheck"* ]]; then
               echo "Verified $PACKAGE@$VERSION on npm."
@@ -95,10 +138,23 @@ jobs:
       - name: Verify installed CLI
         shell: bash
         run: |
+          set -euo pipefail
+
           PACKAGE="${{ steps.npm-state.outputs.package }}"
           VERSION="${{ steps.npm-state.outputs.version }}"
-          ACTUAL="$(npm exec --yes --package "$PACKAGE@$VERSION" -- docs-healthcheck --version)"
+
+          TEMP_DIR="$(mktemp -d)"
+          cd "$TEMP_DIR"
+          npm init -y >/dev/null
+          npm install --silent "$PACKAGE@$VERSION"
+
+          ACTUAL="$(npx --no-install docs-healthcheck --version)"
           test "$ACTUAL" = "$VERSION"
+
+          npx --no-install docs-healthcheck --help >/dev/null
+          npx --no-install docs-healthcheck lint --help >/dev/null
+          npx --no-install docs-healthcheck fix --help >/dev/null
+
           echo "Verified installed CLI: docs-healthcheck $ACTUAL"
 
       - name: Create GitHub release
@@ -106,14 +162,22 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
+
           VERSION="${{ steps.npm-state.outputs.version }}"
           TAG="v$VERSION"
 
-          if gh release view "$TAG" >/dev/null 2>&1; then
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "GitHub release $TAG already exists."
           else
             gh release create "$TAG" \
+              --repo "$GITHUB_REPOSITORY" \
               --target "$GITHUB_SHA" \
               --title "$TAG" \
               --generate-notes
           fi
+
+      - name: Trusted Publishing migration notice
+        if: steps.npm-state.outputs.package_exists != 'true'
+        run: |
+          echo "::notice::First npm publication completed. Configure npm Trusted Publishing for GitHub Actions using repository muhamadzolfaghari/docs-healthcheck and workflow release.yml, allow npm publish, then delete the NPM_TOKEN repository secret."

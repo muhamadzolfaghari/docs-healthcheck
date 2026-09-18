@@ -2,7 +2,6 @@
   "name": "docs-healthcheck",
   "version": "2.1.0",
   "description": "Documentation quality gate and auto-repair engine for Markdown repositories. Validate structure, TOC, links, anchors, and documentation health.",
-
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -76,5 +75,9 @@
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   }
 }
