@@ -3,13 +3,16 @@ import path from "path";
 import { runHealthCheck } from "../core/engine.js";
 import { formatLineDiff } from "./diff.js";
 import { updateTocInContent } from "../markdown/toc.js";
+import { saveFixSession } from "./revert.js";
 import {
   AppliedFix,
   FixExecutionOptions,
   FixExecutionReport,
   FixPlan,
   FixProposal,
+  FixSnapshotEntry,
 } from "./types.js";
+
 
 /**
  * Validates that target path stays strictly within the root directory (prevents path traversal)
@@ -86,11 +89,19 @@ export function executeFixPlan(
     if (proposal.operation.type === "write-file") {
       newFileProposals.push(proposal);
     } else {
-      const list = fileProposalsMap.get(proposal.file) || [];
+      const targetAbs = path.isAbsolute(proposal.file)
+        ? proposal.file
+        : path.resolve(resolvedBase, proposal.file);
+      const relKey = path.relative(resolvedBase, targetAbs) || proposal.file;
+      const list = fileProposalsMap.get(relKey) || [];
       list.push(proposal);
-      fileProposalsMap.set(proposal.file, list);
+      fileProposalsMap.set(relKey, list);
     }
   }
+
+
+  const snapshots: FixSnapshotEntry[] = [];
+  const appliedFixIds: string[] = [];
 
   // 1. Process existing file modifications
   for (const [relFile, proposals] of fileProposalsMap.entries()) {
@@ -132,7 +143,8 @@ export function executeFixPlan(
         throw new Error(`File not found: ${relFile}`);
       }
 
-      let fileContent = fs.readFileSync(targetFileAbs, "utf8");
+      const originalRaw = fs.readFileSync(targetFileAbs, "utf8");
+      let fileContent = originalRaw;
 
       // 1A. Apply text and heading replacements first
       for (const p of proposals) {
@@ -145,6 +157,7 @@ export function executeFixPlan(
               success: true,
               diff: formatLineDiff(op.lineContentBefore, op.lineContentAfter),
             });
+            appliedFixIds.push(p.id);
           } else {
             applied.push({
               proposal: p,
@@ -160,6 +173,7 @@ export function executeFixPlan(
               success: true,
               diff: formatLineDiff(op.originalHeading, op.replacementHeading),
             });
+            appliedFixIds.push(p.id);
           } else {
             applied.push({
               proposal: p,
@@ -181,12 +195,28 @@ export function executeFixPlan(
             success: true,
             diff: `Regenerated Table of Contents in ${relFile} (${tocResult.headingsCount} entries)`,
           });
+          appliedFixIds.push(hasTocOp.id);
         }
       }
 
-      // Write updated content back to disk
-      atomicWriteFile(targetFileAbs, fileContent);
-      modifiedFilesSet.add(relFile);
+      if (fileContent !== originalRaw) {
+        // Record snapshot before overwriting
+        let backupPath: string | undefined = undefined;
+        if (options.backup) {
+          backupPath = `${targetFileAbs}.bak`;
+          fs.writeFileSync(backupPath, originalRaw, "utf8");
+        }
+
+        snapshots.push({
+          file: path.relative(resolvedBase, targetFileAbs),
+          originalContent: originalRaw,
+          backupPath,
+        });
+
+        // Write updated content back to disk
+        atomicWriteFile(targetFileAbs, fileContent);
+        modifiedFilesSet.add(relFile);
+      }
     } catch (err: any) {
       for (const p of proposals) {
         if (!applied.find((a) => a.proposal.id === p.id)) {
@@ -231,12 +261,19 @@ export function executeFixPlan(
       }
 
       if (proposal.operation.type === "write-file") {
+        snapshots.push({
+          file: path.relative(resolvedBase, targetFileAbs),
+          originalContent: null, // null means newly created file
+        });
+
+
         atomicWriteFile(targetFileAbs, proposal.operation.content);
         applied.push({
           proposal,
           success: true,
           diff: `Created ${proposal.file}`,
         });
+        appliedFixIds.push(proposal.id);
         modifiedFilesSet.add(proposal.file);
       }
     } catch (err: any) {
@@ -247,6 +284,12 @@ export function executeFixPlan(
       });
     }
   }
+
+  // Save session snapshot manifest if live changes were performed
+  if (!isDryRun && snapshots.length > 0) {
+    saveFixSession(resolvedBase, plan.target, snapshots, appliedFixIds);
+  }
+
 
   // Re-run health check to determine actual after score
   let afterReport: any = undefined;

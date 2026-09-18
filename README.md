@@ -79,11 +79,17 @@ npx docs-healthcheck fix
 # Non-interactive / CI safe auto-repair (applies only SAFE deterministic fixes)
 npx docs-healthcheck fix --yes
 
+# Revert the last applied fix session (restores modified files & deletes created files)
+npx docs-healthcheck fix revert
+# Or shortcut command:
+npx docs-healthcheck revert
+
 # Root shortcut alias
 npx docs-healthcheck --fix --yes
 ```
 
 ---
+
 
 ## Fix Safety Classification
 
@@ -166,7 +172,8 @@ Documentation quality gate and auto-repair engine for Markdown repositories.
 
 Commands:
   scan [path]        Full documentation health check for repository or directory (default)
-  fix [path]         Analyze and deterministically repair documentation issues
+  fix [args...]      Analyze and deterministically repair documentation issues (or fix revert)
+  revert [path]      Revert all changes applied during the last fix session
   check <file>       Validate a specific Markdown file for broken links, anchors, and heading structure
   toc <file>         Generate or update Table of Contents for a Markdown file
   help [command]     Display help for command
@@ -177,6 +184,8 @@ Options:
   --dry-run          Preview proposed repairs without modifying files
   -y, --yes          Automatically apply all safe deterministic repairs
   --safe-only        Apply only safe deterministic repairs (alias for --yes)
+  --backup           Create .bak backup files before modifying documentation
+  --revert           Revert changes from the previous fix session
   --json             Output results in JSON format
   --markdown         Output results in GitHub Markdown format
   --verbose          Show detailed verbose diagnostic information
@@ -219,8 +228,10 @@ Options:
 import {
   checkDocumentation,
   fixDocumentation,
+  revertDocumentation,
   createFixPlan,
   executeFixPlan,
+  revertFixes,
   validateMarkdown,
   generateToc,
   updateToc,
@@ -241,6 +252,16 @@ console.log(`Before: ${report.beforeScore}/100`);
 console.log(`After:  ${report.afterScore}/100 (+${report.scoreDelta})`);
 console.log(`Applied: ${report.applied.length} fixes`);
 ```
+
+### Revert Fix Session Programmatically
+
+```ts
+// Revert last fix session
+const revertReport = revertDocumentation("./my-project");
+console.log(revertReport.message);
+console.log(`Restored: ${revertReport.restoredFiles.length} file(s)`);
+```
+
 
 ### Check Documentation
 

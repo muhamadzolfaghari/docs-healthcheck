@@ -93,7 +93,42 @@ export interface FixExecutionOptions {
   json?: boolean;
   markdown?: boolean;
   minScore?: number;
+  backup?: boolean;
   acceptedProposalIds?: string[];
+}
+
+export interface FixSnapshotEntry {
+  file: string;
+  originalContent: string | null;
+  backupPath?: string;
+}
+
+export interface FixSessionManifest {
+  id: string;
+  timestamp: string;
+  target: string;
+  files: FixSnapshotEntry[];
+  appliedFixIds: string[];
+}
+
+export interface RevertExecutionOptions {
+  dryRun?: boolean;
+  json?: boolean;
+  markdown?: boolean;
+  verbose?: boolean;
+  silent?: boolean;
+  minScore?: number;
+}
+
+export interface RevertExecutionReport {
+  target: string;
+  dryRun: boolean;
+  restoredFiles: string[];
+  deletedFiles: string[];
+  beforeScore: number;
+  afterScore: number;
+  scoreDelta: number;
+  message: string;
 }
 
 export interface FixExecutionReport {
@@ -109,3 +144,4 @@ export interface FixExecutionReport {
   before: RepoHealthReport;
   after?: RepoHealthReport;
 }
+

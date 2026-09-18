@@ -20,6 +20,8 @@ import { slugify, Slugger } from "./markdown/slug.js";
 import { evaluateRepoHealth } from "./checks/repo-health.js";
 import { createFixPlan } from "./fixes/planner.js";
 import { executeFixPlan } from "./fixes/executor.js";
+import { revertFixes, hasFixSession, readFixSession } from "./fixes/revert.js";
+import { RevertExecutionOptions } from "./fixes/types.js";
 
 
 /**
@@ -85,6 +87,7 @@ export function fixDocumentation(
     safeOnly?: boolean;
     minScore?: number;
     verbose?: boolean;
+    backup?: boolean;
     acceptedProposalIds?: string[];
   } = {}
 ) {
@@ -92,6 +95,16 @@ export function fixDocumentation(
   const report = runHealthCheck(resolvedTarget, { minScore: options.minScore });
   const plan = createFixPlan(report, resolvedTarget);
   return executeFixPlan(plan, options, resolvedTarget);
+}
+
+/**
+ * Programmatic API for reverting the last fix session
+ */
+export function revertDocumentation(
+  targetPath = ".",
+  options: RevertExecutionOptions = {}
+) {
+  return revertFixes(targetPath, options);
 }
 
 // Export all core types and functions
@@ -109,6 +122,7 @@ export * from "./checks/repo-health.js";
 export * from "./fixes/types.js";
 export * from "./fixes/planner.js";
 export * from "./fixes/executor.js";
+export * from "./fixes/revert.js";
 export * from "./fixes/diff.js";
 export * from "./reporters/terminal.js";
 export * from "./reporters/json.js";
@@ -116,4 +130,6 @@ export * from "./reporters/markdown.js";
 export * from "./reporters/fix-terminal.js";
 export * from "./reporters/fix-json.js";
 export * from "./reporters/fix-markdown.js";
+export * from "./reporters/revert-terminal.js";
+
 

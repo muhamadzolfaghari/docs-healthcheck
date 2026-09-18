@@ -99,4 +99,34 @@ describe("CLI Fix Integration Tests", () => {
     expect(output).toContain("DOCUMENTATION HEALTH REPAIR REPORT");
     expect(output).toContain("DRY-RUN PREVIEW");
   });
+
+  it("supports fix revert workflow via fix revert and revert commands", () => {
+    fs.cpSync(demoFixable, tempDir, { recursive: true });
+    const originalReadme = fs.readFileSync(path.join(tempDir, "README.md"), "utf8");
+
+    // Apply fixes
+    execSync(`node ${binPath} fix "${tempDir}" --yes`);
+    const modifiedReadme = fs.readFileSync(path.join(tempDir, "README.md"), "utf8");
+    expect(modifiedReadme).toContain("#installation");
+
+    // Dry-run revert
+    const dryRunOutput = execSync(`node ${binPath} revert "${tempDir}" --dry-run`, {
+      encoding: "utf8",
+    });
+    expect(dryRunOutput).toContain("DOCUMENTATION HEALTH REVERT REPORT");
+    expect(dryRunOutput).toContain("DRY-RUN PREVIEW");
+    expect(fs.readFileSync(path.join(tempDir, "README.md"), "utf8")).toBe(modifiedReadme);
+
+    // Live revert via fix revert
+    const revertOutput = execSync(`node ${binPath} fix revert "${tempDir}"`, {
+      encoding: "utf8",
+    });
+    expect(revertOutput).toContain("DOCUMENTATION HEALTH REVERT REPORT");
+    expect(revertOutput).toContain("Restored Files:");
+    expect(revertOutput).toContain("README.md");
+
+    // File content should match original
+    expect(fs.readFileSync(path.join(tempDir, "README.md"), "utf8")).toBe(originalReadme);
+  });
 });
+

@@ -14,8 +14,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Interactive repair workflow with single-prompt confirmation per issue.
   - `--dry-run` flag to preview all proposed repairs without modifying files.
   - `--yes` (`-y`) / `--safe-only` flag to automatically apply only safe deterministic repairs in CI and headless environments.
+  - `--backup` flag to automatically generate `.bak` backup files alongside modified files.
   - Root command shortcut alias `--fix` (e.g. `docs-healthcheck --fix --yes`).
   - Formats: Pretty Terminal (`renderFixTerminalReport`), `--json` (`renderFixJsonReport`), and `--markdown` (`renderFixMarkdownReport`).
+- **Fix Session Revert Engine (`docs-healthcheck revert` / `docs-healthcheck fix revert`):**
+  - Instant rollback of the last applied fix session.
+  - Safely restores all modified files back to their exact pre-fix states.
+  - Automatically removes any newly created template files.
+  - Supports `--dry-run`, `--json`, and `--markdown` output modes for revert operations.
 - **Deterministic Fix Planner (`src/fixes/`):**
   - Explicit three-tier safety classification: `SAFE`, `CONFIRM`, and `MANUAL`.
   - **TOC Synchronizer:** Automatically regenerates out-of-sync managed TOC blocks (`<!-- TOC START -->`).
@@ -27,13 +33,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Atomic write strategy preventing corrupted or half-written documentation.
   - Strict path traversal guard preventing any writes outside the project root.
   - Full idempotency guarantee: repeated fix executions apply 0 changes.
-- **Programmatic Repair API:**
+- **Programmatic Repair & Revert API:**
   - `fixDocumentation(path, options)`
+  - `revertDocumentation(path, options)`
   - `createFixPlan(report, rootDir, options)`
   - `executeFixPlan(plan, options, rootDir)`
+  - `revertFixes(path, options)`
 - **Demos & Fixtures:**
   - Added `demo/fixable-docs` demonstrating before/after score progression.
   - Added test fixtures: `fix-anchor`, `fix-toc`, `fix-link`, `fix-heading`, `fix-template`, `ambiguous-link`, and `already-clean`.
+
 
 ---
 

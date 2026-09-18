@@ -11,10 +11,13 @@ import { renderJsonReport } from "../reporters/json.js";
 import { renderMarkdownReport } from "../reporters/markdown.js";
 import { createFixPlan } from "../fixes/planner.js";
 import { executeFixPlan } from "../fixes/executor.js";
+import { revertFixes, hasFixSession } from "../fixes/revert.js";
 import { promptUserForProposals } from "../fixes/prompts/interactive.js";
 import { renderFixTerminalReport } from "../reporters/fix-terminal.js";
 import { renderFixJsonReport } from "../reporters/fix-json.js";
 import { renderFixMarkdownReport } from "../reporters/fix-markdown.js";
+import { renderRevertTerminalReport } from "../reporters/revert-terminal.js";
+
 
 export function runCli(argv = process.argv): void {
   const program = new Command();
@@ -80,19 +83,58 @@ export function runCli(argv = process.argv): void {
 
   // fix Command: interactive or automatic deterministic repairs
   program
-    .command("fix [path]")
+    .command("fix [args...]")
     .description("Analyze and deterministically repair documentation issues")
     .option("--dry-run", "Preview proposed repairs without modifying files")
     .option("-y, --yes", "Automatically apply all safe deterministic repairs")
     .option("--safe-only", "Apply only safe deterministic repairs (alias for --yes)")
+    .option("--backup", "Create .bak backup files before modifying documentation")
+    .option("--revert", "Revert changes from the previous fix session")
     .option("--json", "Output repair results in JSON format")
     .option("--markdown", "Output repair results in GitHub Markdown format")
     .option("--verbose", "Show detailed unified diffs")
     .option("--min-score <score>", "Target score threshold", "70")
     .option("--silent", "Suppress stdout")
-    .action(async (targetPath = ".", options = {}) => {
+    .action(async (args: any, options = {}) => {
+      let targetPath = ".";
+      let isRevert = Boolean((options as any).revert);
+      if (Array.isArray(args) && args.length > 0) {
+        if (args[0] === "revert") {
+          isRevert = true;
+          targetPath = args[1] || ".";
+        } else {
+          targetPath = args[0] || ".";
+        }
+      } else if (typeof args === "string") {
+        if (args === "revert") {
+          isRevert = true;
+          targetPath = ".";
+        } else {
+          targetPath = args;
+        }
+      }
+
+      if (isRevert) {
+        handleRevertCommand(targetPath, options);
+        return;
+      }
       await handleFixCommand(targetPath, options);
     });
+
+
+  // revert Command: revert the last fix session
+  program
+    .command("revert [path]")
+    .description("Revert all changes applied during the last fix session")
+    .option("--dry-run", "Preview files that would be restored without modifying files")
+    .option("--json", "Output results in JSON format")
+    .option("--markdown", "Output results in GitHub Markdown format")
+    .option("--min-score <score>", "Target score threshold", "70")
+    .option("--silent", "Suppress stdout")
+    .action((targetPath = ".", options = {}) => {
+      handleRevertCommand(targetPath, options);
+    });
+
 
   // check Command: checks a single markdown file
   program
@@ -202,6 +244,12 @@ export function runCli(argv = process.argv): void {
  * Shared helper to execute fix command
  */
 async function handleFixCommand(targetPath: string, options: any): Promise<void> {
+  if (targetPath === "revert" || options.revert) {
+    const actualTarget = targetPath === "revert" ? "." : targetPath;
+    handleRevertCommand(actualTarget, options);
+    return;
+  }
+
   const resolvedTarget = path.resolve(process.cwd(), targetPath);
   const isTargetFile =
     fs.existsSync(resolvedTarget) && fs.statSync(resolvedTarget).isFile();
@@ -264,6 +312,7 @@ async function handleFixCommand(targetPath: string, options: any): Promise<void>
       dryRun: options.dryRun,
       yes: options.yes || options.safeOnly,
       safeOnly: options.safeOnly || options.yes,
+      backup: options.backup,
       acceptedProposalIds,
       verbose: options.verbose,
       minScore,
@@ -283,3 +332,48 @@ async function handleFixCommand(targetPath: string, options: any): Promise<void>
 
   process.exit(0);
 }
+
+/**
+ * Shared helper to execute revert command
+ */
+function handleRevertCommand(targetPath: string, options: any): void {
+  const minScore = parseInt(options.minScore, 10) || 70;
+  const revertReport = revertFixes(targetPath, {
+    dryRun: options.dryRun,
+    minScore,
+    verbose: options.verbose,
+    silent: options.silent,
+  });
+
+  if (!options.silent) {
+    if (options.json) {
+      console.log(JSON.stringify(revertReport, null, 2));
+    } else if (options.markdown) {
+      const lines = [
+        "## Documentation Health Revert Report\n",
+        `**Target:** \`${revertReport.target}\` | **Health Score:** ${revertReport.beforeScore}/100 → ${revertReport.afterScore}/100\n`,
+        `**Message:** ${revertReport.message}\n`,
+      ];
+      if (revertReport.restoredFiles.length > 0) {
+        lines.push("### Restored Files");
+        for (const file of revertReport.restoredFiles) {
+          lines.push(`- \`${file}\``);
+        }
+        lines.push("");
+      }
+      if (revertReport.deletedFiles.length > 0) {
+        lines.push("### Removed Files");
+        for (const file of revertReport.deletedFiles) {
+          lines.push(`- \`${file}\``);
+        }
+        lines.push("");
+      }
+      console.log(lines.join("\n"));
+    } else {
+      console.log(renderRevertTerminalReport(revertReport));
+    }
+  }
+
+  process.exit(0);
+}
+
