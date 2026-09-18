@@ -13,8 +13,9 @@ describe("CLI Integration Tests", () => {
 
   it("prints version", () => {
     const output = execSync(`node ${binPath} --version`, { encoding: "utf8" });
-    expect(output.trim()).toBe("2.0.0");
+    expect(output.trim()).toBe("2.1.0");
   });
+
 
   it("evaluates healthy project with exit code 0", () => {
     const output = execSync(`node ${binPath} scan "${healthyProject}" --json`, {
