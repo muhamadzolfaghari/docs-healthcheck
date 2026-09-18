@@ -18,6 +18,9 @@ import { extractAvailableAnchors } from "./markdown/anchors.js";
 import { parseMarkdown, ParsedMarkdownDocument } from "./markdown/parser.js";
 import { slugify, Slugger } from "./markdown/slug.js";
 import { evaluateRepoHealth } from "./checks/repo-health.js";
+import { createFixPlan } from "./fixes/planner.js";
+import { executeFixPlan } from "./fixes/executor.js";
+
 
 /**
  * Programmatic API for checking documentation health of a repository or file
@@ -71,6 +74,26 @@ export function updateToc(
   return updateTocInContent(content, options);
 }
 
+/**
+ * Programmatic API for fixing documentation issues
+ */
+export function fixDocumentation(
+  targetPath = ".",
+  options: {
+    dryRun?: boolean;
+    yes?: boolean;
+    safeOnly?: boolean;
+    minScore?: number;
+    verbose?: boolean;
+    acceptedProposalIds?: string[];
+  } = {}
+) {
+  const resolvedTarget = path.resolve(process.cwd(), targetPath);
+  const report = runHealthCheck(resolvedTarget, { minScore: options.minScore });
+  const plan = createFixPlan(report, resolvedTarget);
+  return executeFixPlan(plan, options, resolvedTarget);
+}
+
 // Export all core types and functions
 export * from "./core/types.js";
 export * from "./core/engine.js";
@@ -83,6 +106,14 @@ export * from "./markdown/links.js";
 export * from "./markdown/parser.js";
 export * from "./markdown/toc.js";
 export * from "./checks/repo-health.js";
+export * from "./fixes/types.js";
+export * from "./fixes/planner.js";
+export * from "./fixes/executor.js";
+export * from "./fixes/diff.js";
 export * from "./reporters/terminal.js";
 export * from "./reporters/json.js";
 export * from "./reporters/markdown.js";
+export * from "./reporters/fix-terminal.js";
+export * from "./reporters/fix-json.js";
+export * from "./reporters/fix-markdown.js";
+

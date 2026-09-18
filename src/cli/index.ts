@@ -9,6 +9,12 @@ import { extractHeadings } from "../markdown/headings.js";
 import { renderTerminalReport } from "../reporters/terminal.js";
 import { renderJsonReport } from "../reporters/json.js";
 import { renderMarkdownReport } from "../reporters/markdown.js";
+import { createFixPlan } from "../fixes/planner.js";
+import { executeFixPlan } from "../fixes/executor.js";
+import { promptUserForProposals } from "../fixes/prompts/interactive.js";
+import { renderFixTerminalReport } from "../reporters/fix-terminal.js";
+import { renderFixJsonReport } from "../reporters/fix-json.js";
+import { renderFixMarkdownReport } from "../reporters/fix-markdown.js";
 
 export function runCli(argv = process.argv): void {
   const program = new Command();
@@ -16,14 +22,18 @@ export function runCli(argv = process.argv): void {
   program
     .name("docs-healthcheck")
     .description(
-      "Documentation quality gate for Markdown repositories. Validate structure, TOC, links, anchors, and health."
+      "Documentation quality gate and auto-repair engine for Markdown repositories."
     )
-    .version("2.0.0");
+    .version("2.1.0");
 
-  // Default Command: full documentation health check
+  // Default Command: scan (or --fix)
   program
     .command("scan [path]", { isDefault: true })
     .description("Full documentation health check for repository or directory (default)")
+    .option("--fix", "Shortcut to repair documentation issues (equivalent to fix [path])")
+    .option("--dry-run", "Preview proposed repairs without modifying files (used with --fix)")
+    .option("-y, --yes", "Automatically apply all safe deterministic repairs (used with --fix)")
+    .option("--safe-only", "Apply only safe deterministic repairs (used with --fix)")
     .option("--json", "Output results in JSON format")
     .option("--markdown", "Output results in GitHub Markdown format")
     .option("--verbose", "Show detailed verbose diagnostic information")
@@ -31,7 +41,13 @@ export function runCli(argv = process.argv): void {
     .option("--strict", "Treat warnings as errors (exit code 2)")
     .option("--min-score <score>", "Minimum acceptable documentation health score (0-100)", "70")
     .option("--silent", "Suppress stdout and only use exit code")
-    .action((targetPath = ".", options = {}) => {
+    .action(async (targetPath = ".", options = {}) => {
+      if (options.fix) {
+        // Execute fix workflow
+        await handleFixCommand(targetPath, options);
+        return;
+      }
+
       const minScore = parseInt(options.minScore, 10) || 70;
       const report = runHealthCheck(targetPath, {
         minScore,
@@ -62,6 +78,21 @@ export function runCli(argv = process.argv): void {
       }
     });
 
+  // fix Command: interactive or automatic deterministic repairs
+  program
+    .command("fix [path]")
+    .description("Analyze and deterministically repair documentation issues")
+    .option("--dry-run", "Preview proposed repairs without modifying files")
+    .option("-y, --yes", "Automatically apply all safe deterministic repairs")
+    .option("--safe-only", "Apply only safe deterministic repairs (alias for --yes)")
+    .option("--json", "Output repair results in JSON format")
+    .option("--markdown", "Output repair results in GitHub Markdown format")
+    .option("--verbose", "Show detailed unified diffs")
+    .option("--min-score <score>", "Target score threshold", "70")
+    .option("--silent", "Suppress stdout")
+    .action(async (targetPath = ".", options = {}) => {
+      await handleFixCommand(targetPath, options);
+    });
 
   // check Command: checks a single markdown file
   program
@@ -121,7 +152,6 @@ export function runCli(argv = process.argv): void {
       }
     });
 
-
   // toc Command: generates or updates TOC
   program
     .command("toc <file>")
@@ -166,4 +196,90 @@ export function runCli(argv = process.argv): void {
     });
 
   program.parse(argv);
+}
+
+/**
+ * Shared helper to execute fix command
+ */
+async function handleFixCommand(targetPath: string, options: any): Promise<void> {
+  const resolvedTarget = path.resolve(process.cwd(), targetPath);
+  const isTargetFile =
+    fs.existsSync(resolvedTarget) && fs.statSync(resolvedTarget).isFile();
+  const rootDir = isTargetFile ? path.dirname(resolvedTarget) : resolvedTarget;
+
+  const minScore = parseInt(options.minScore, 10) || 70;
+  const report = runHealthCheck(targetPath, { minScore });
+  const plan = createFixPlan(report, rootDir);
+
+  if (plan.proposals.length === 0) {
+    if (!options.silent) {
+      if (options.json) {
+        console.log(
+          JSON.stringify(
+            {
+              target: targetPath,
+              dryRun: Boolean(options.dryRun),
+              beforeScore: report.score,
+              afterScore: report.score,
+              scoreDelta: 0,
+              appliedCount: 0,
+              skippedCount: 0,
+              manualCount: 0,
+              changedFiles: [],
+              applied: [],
+              skipped: [],
+              manual: [],
+            },
+            null,
+            2
+          )
+        );
+      } else {
+        console.log(
+          pc.green("\n  ✔ No repairable documentation issues detected. Everything is healthy!\n")
+        );
+      }
+    }
+    process.exit(0);
+  }
+
+  let acceptedProposalIds: string[] | undefined = undefined;
+  const isNonInteractive = Boolean(
+    options.yes || options.safeOnly || options.dryRun || options.json || options.markdown
+  );
+
+  if (!isNonInteractive) {
+    // Interactive prompt
+    console.log(
+      pc.bold(
+        pc.cyan(`\n  Found ${plan.proposals.length} issue(s) across documentation in ${targetPath}:`)
+      )
+    );
+    acceptedProposalIds = await promptUserForProposals(plan);
+  }
+
+  const fixReport = executeFixPlan(
+    plan,
+    {
+      dryRun: options.dryRun,
+      yes: options.yes || options.safeOnly,
+      safeOnly: options.safeOnly || options.yes,
+      acceptedProposalIds,
+      verbose: options.verbose,
+      minScore,
+    },
+    rootDir
+  );
+
+  if (!options.silent) {
+    if (options.json) {
+      console.log(renderFixJsonReport(fixReport));
+    } else if (options.markdown) {
+      console.log(renderFixMarkdownReport(fixReport));
+    } else {
+      console.log(renderFixTerminalReport(fixReport));
+    }
+  }
+
+  process.exit(0);
 }
