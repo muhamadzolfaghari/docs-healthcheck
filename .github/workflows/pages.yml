@@ -13,11 +13,10 @@ permissions:
   contents: read
   pages: write
   id-token: write
-  actions: read
 
 concurrency:
-  group: docs-healthcheck-pages
-  cancel-in-progress: true
+  group: "pages"
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -27,6 +26,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+
+      - name: Configure GitHub Pages
+        id: pages
+        uses: actions/configure-pages@v5
 
       - name: Validate static playground
         shell: bash
@@ -38,6 +41,7 @@ jobs:
           node --check site/app.js
           grep -q "docs-healthcheck Playground" site/index.html
           grep -q "Fix SAFE issues" site/index.html
+          echo "Pages base URL: ${{ steps.pages.outputs.base_url }}"
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
