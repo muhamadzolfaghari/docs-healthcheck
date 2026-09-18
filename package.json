@@ -1,7 +1,7 @@
 {
   "name": "docs-healthcheck",
   "version": "2.1.0",
-  "description": "Documentation quality gate and auto-repair engine for Markdown repositories. Validate structure, TOC, links, anchors, and documentation health.",
+  "description": "Evidence-backed documentation quality gate and deterministic auto-repair engine for Markdown repositories.",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -61,7 +61,7 @@
   "bugs": {
     "url": "https://github.com/muhamadzolfaghari/docs-healthcheck/issues"
   },
-  "homepage": "https://github.com/muhamadzolfaghari/docs-healthcheck#readme",
+  "homepage": "https://muhamadzolfaghari.github.io/docs-healthcheck/",
   "dependencies": {
     "commander": "^12.1.0",
     "picocolors": "^1.1.0"
