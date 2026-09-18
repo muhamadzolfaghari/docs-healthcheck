@@ -89,7 +89,9 @@ export function updateTocInContent(
   options: TocOptions = {}
 ): TocResult {
   const headings = extractHeadings(content);
+  const eol = content.includes("\r\n") ? "\r\n" : "\n";
   const tocBody = generateTocMarkdown(headings, options);
+  const tocBodyWithEol = tocBody.replace(/\n/g, eol);
 
   // Check if standalone markers exist on their own lines
   const markerRegex = /(^[ \t]*<!--\s*(?:TOC\s+START|toc|START\s+doctoc|TOC)\s*-->[ \t]*\r?\n)([\s\S]*?)(^[ \t]*<!--\s*(?:TOC\s+END|\/toc|END\s+doctoc|\/TOC)\s*-->[ \t]*$)/im;
@@ -98,7 +100,7 @@ export function updateTocInContent(
   if (match) {
     const startTag = match[1].trim();
     const endTag = match[3].trim();
-    const replacement = `${startTag}\n\n${tocBody}\n\n${endTag}`;
+    const replacement = `${startTag}${eol}${eol}${tocBodyWithEol}${eol}${eol}${endTag}`;
     const updatedContent = content.replace(markerRegex, replacement);
 
     return {
@@ -131,13 +133,13 @@ export function updateTocInContent(
     }
   }
 
-  const wrappedToc = `<!-- TOC START -->\n\n${tocBody}\n\n<!-- TOC END -->`;
+  const wrappedToc = `<!-- TOC START -->${eol}${eol}${tocBodyWithEol}${eol}${eol}<!-- TOC END -->`;
   const updatedLines = [...lines];
   updatedLines.splice(insertIndex, 0, wrappedToc);
 
   return {
     tocMarkdown: tocBody,
-    updatedContent: updatedLines.join("\n"),
+    updatedContent: updatedLines.join(eol),
     inserted: true,
     headingsCount: headings.length,
   };

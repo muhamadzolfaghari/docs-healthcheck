@@ -64,6 +64,35 @@ Old TOC Content
     expect(res.updatedContent).not.toContain("Old TOC Content");
   });
 
+  it("preserves CRLF line endings and is idempotent for an already-correct managed TOC", () => {
+    const crlf = [
+      "# Title",
+      "",
+      "<!-- TOC START -->",
+      "",
+      "## Table of Contents",
+      "",
+      "- [Section 1](#section-1)",
+      "- [Section 2](#section-2)",
+      "",
+      "<!-- TOC END -->",
+      "",
+      "## Section 1",
+      "",
+      "Text.",
+      "",
+      "## Section 2",
+      "",
+      "Text.",
+      "",
+    ].join("\r\n");
+
+    const res = updateTocInContent(crlf);
+
+    expect(res.updatedContent).toBe(crlf);
+    expect(res.updatedContent).not.toMatch(/(?<!\r)\n/);
+  });
+
   it("handles Persian & RTL headings in TOC", () => {
     const persianMd = `
 # راهنمای جامع
