@@ -162,7 +162,7 @@ function analyzeMarkdown(text) {
       id: "heading-missing-h1",
       title: "Missing document title",
       description: "No H1 heading was found.",
-      severity: "error",
+      severity: "info",
       safety: "manual",
     });
   } else if (h1s.length > 1) {
@@ -171,6 +171,7 @@ function analyzeMarkdown(text) {
       title: "Multiple H1 headings",
       description: `Found ${h1s.length} H1 headings. A document normally has one primary title.`,
       safety: "manual",
+      severity: "info",
       line: h1s[1].line,
     });
   }
@@ -221,9 +222,10 @@ function analyzeMarkdown(text) {
     if (!body) {
       addIssue(issues, {
         id: `heading-empty-${heading.line}`,
-        title: "Empty section",
-        description: `"${heading.text}" has no content before the next heading.`,
+        title: "Empty section (advisory)",
+        description: `"${heading.text}" has no direct content or nested subsection. This is a docs-healthcheck heuristic, not a Markdown syntax error.`,
         safety: "manual",
+        severity: "info",
         line: heading.line,
       });
     }

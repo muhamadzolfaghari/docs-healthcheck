@@ -112,6 +112,7 @@ export * from "./core/types.js";
 export * from "./core/engine.js";
 export * from "./core/analyzer.js";
 export * from "./core/rules.js";
+export * from "./core/rule-catalog.js";
 export * from "./markdown/slug.js";
 export * from "./markdown/headings.js";
 export * from "./markdown/anchors.js";
