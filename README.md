@@ -40,6 +40,7 @@
   - [1. Full Repository Healthcheck](#1-full-repository-healthcheck)
   - [2. Generate / Update Table of Contents](#2-generate--update-table-of-contents)
   - [3. Validate a Specific Markdown File](#3-validate-a-specific-markdown-file)
+- [Live Demo Repositories](#live-demo-repositories)
 - [CLI Reference](#cli-reference)
   - [Global Options & Flags](#global-options--flags)
   - [Commands](#commands)
@@ -119,6 +120,44 @@ docs-healthcheck toc README.md --write
 ```bash
 docs-healthcheck check docs/guide.md
 ```
+
+---
+
+
+## Live Demo Repositories
+
+The repository includes two intentionally different documentation fixtures you can run locally:
+
+- [`demo/healthy-docs`](./demo/healthy-docs/README.md) — a complete documentation set expected to pass the quality gate.
+- [`demo/broken-docs`](./demo/broken-docs/README.md) — intentionally contains broken anchors, missing files, heading problems, and missing repository documentation so you can see the failures.
+
+Build the CLI once:
+
+```bash
+npm ci
+npm run build
+```
+
+Run the healthy example:
+
+```bash
+node ./bin/docs-healthcheck.js demo/healthy-docs
+```
+
+Run the intentionally broken example:
+
+```bash
+node ./bin/docs-healthcheck.js demo/broken-docs
+```
+
+Try machine-readable output:
+
+```bash
+node ./bin/docs-healthcheck.js demo/healthy-docs --json
+node ./bin/docs-healthcheck.js demo/broken-docs --markdown
+```
+
+The CI matrix also executes both demos: the healthy repository must pass, while the broken repository must be rejected. The top-level project health check ignores `demo/` so intentionally invalid demonstration files never contaminate the package's own health score.
 
 ---
 
@@ -299,9 +338,9 @@ Generates exact GitHub-compliant slugs:
 
 ## Future Roadmap
 
-- 🎯 **v0.2:** External URL liveness validation, custom configuration files (`.docsrc.json` / `docs-healthcheck.config.js`), and documentation completeness heuristics.
-- 🚀 **v0.3:** Official GitHub Action release on GitHub Marketplace with PR inline annotations and automated summary comments.
-- 🤖 **v0.4:** Model Context Protocol (MCP) Server integration allowing AI agents (like Claude Desktop and Gemini) to query documentation quality and auto-apply suggested fixes.
+- 🎯 **v2.1.0:** External URL liveness validation, custom configuration files (`.docsrc.json` / `docs-healthcheck.config.js`), and documentation completeness heuristics.
+- 🚀 **v2.2.0:** Official GitHub Action release on GitHub Marketplace with PR inline annotations and automated summary comments.
+- 🤖 **v2.3.0:** Model Context Protocol (MCP) Server integration allowing AI agents (like Claude Desktop and Gemini) to query documentation quality and auto-apply suggested fixes.
 
 ---
 

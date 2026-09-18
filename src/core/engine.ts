@@ -14,6 +14,7 @@ const DEFAULT_IGNORE = [
   ".turbo",
   "fixtures",
   "tests/fixtures",
+  "demo",
 ];
 
 /**
@@ -67,7 +68,6 @@ export function runHealthCheck(
   } else {
     const mdFiles = findMarkdownFiles(rootDir, config.ignorePaths ?? DEFAULT_IGNORE);
     for (const f of mdFiles) {
-      const rel = path.relative(rootDir, f);
       fileResults.push(analyzeMarkdownFile(f, config));
     }
   }
@@ -94,8 +94,8 @@ export function runHealthCheck(
 
   const avgFileScore =
     fileResults.length > 0 ? fileScoreSum / fileResults.length : 100;
-  
-  // Composite score: 50% repository structural health, 50% markdown content validation quality
+
+  // Composite score: 40% repository structural health, 60% markdown validation quality.
   const compositeScore = isTargetFile
     ? Math.round(fileResults[0]?.score ?? 0)
     : Math.round(repoEvaluation.score * 0.4 + avgFileScore * 0.6);
