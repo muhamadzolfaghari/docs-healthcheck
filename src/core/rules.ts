@@ -4,6 +4,7 @@ import { ParsedMarkdownDocument } from "../markdown/parser.js";
 import { ValidationIssue } from "./types.js";
 import { isAnchorValid } from "../markdown/anchors.js";
 import { extractHeadings } from "../markdown/headings.js";
+import { getRuleSeverity } from "./rule-catalog.js";
 
 /**
  * Validates heading structure: missing H1, multiple H1s, hierarchy skips, and duplicates.
@@ -19,7 +20,7 @@ export function validateHeadings(
   if (h1Headings.length === 0 && doc.headings.length > 0) {
     issues.push({
       ruleId: "heading-missing-h1",
-      severity: "warning",
+          severity: getRuleSeverity("heading-missing-h1"),
       message: "Document is missing a top-level H1 (#) title heading.",
       file: filePath,
       line: doc.headings[0]?.line ?? 1,
@@ -32,7 +33,7 @@ export function validateHeadings(
     for (let i = 1; i < h1Headings.length; i++) {
       issues.push({
         ruleId: "heading-multiple-h1",
-        severity: "warning",
+          severity: getRuleSeverity("heading-multiple-h1"),
         message: `Multiple H1 headings detected: "${h1Headings[i].text}". Documents should typically have a single H1.`,
         file: filePath,
         line: h1Headings[i].line,
@@ -47,7 +48,7 @@ export function validateHeadings(
     if (prevLevel > 0 && h.level > prevLevel + 1) {
       issues.push({
         ruleId: "heading-hierarchy",
-        severity: "warning",
+          severity: getRuleSeverity("heading-hierarchy"),
         message: `Heading hierarchy skipped from H${prevLevel} to H${h.level} for "${h.text}".`,
         file: filePath,
         line: h.line,
@@ -71,7 +72,7 @@ export function validateHeadings(
       for (let i = 1; i < lines.length; i++) {
         issues.push({
           ruleId: "heading-duplicate",
-          severity: "info",
+          severity: getRuleSeverity("heading-duplicate"),
           message: `Duplicate heading title "${title}" detected (also on line ${lines[0]}). May cause anchor collision.`,
           file: filePath,
           line: lines[i],
@@ -108,11 +109,11 @@ export function validateHeadings(
     if (!hasContent) {
       issues.push({
         ruleId: "heading-empty-section",
-        severity: "warning",
-        message: `Empty section under heading "${currentHeading.text}" with no content.`,
+          severity: getRuleSeverity("heading-empty-section"),
+        message: `Section "${currentHeading.text}" has no direct content or nested subsection.`,
         file: filePath,
         line: currentHeading.line,
-        suggestion: `Add documentation content under this heading or remove the empty heading.`,
+        suggestion: `This is an advisory heuristic, not a Markdown syntax requirement. Add content or remove the heading only if that matches author intent.`,
       });
     }
   }
@@ -137,7 +138,7 @@ export function validateLinksAndAnchors(
       if (!isAnchorValid(link.anchorTarget, doc.availableAnchors)) {
         issues.push({
           ruleId: "anchor-broken",
-          severity: "error",
+          severity: getRuleSeverity("anchor-broken"),
           message: `Broken internal anchor link: href="${link.href}" targeting non-existent anchor #${link.anchorTarget}.`,
           file: filePath,
           line: link.line,
@@ -155,7 +156,7 @@ export function validateLinksAndAnchors(
       if (!fs.existsSync(resolvedTarget)) {
         issues.push({
           ruleId: "link-missing-file",
-          severity: "error",
+          severity: getRuleSeverity("link-missing-file"),
           message: `Referenced local file does not exist: "${link.filePath}" (resolved to ${resolvedTarget}).`,
           file: filePath,
           line: link.line,
@@ -176,7 +177,7 @@ export function validateLinksAndAnchors(
           if (!targetAnchors.has(link.anchorTarget.toLowerCase())) {
             issues.push({
               ruleId: "anchor-broken",
-              severity: "error",
+          severity: getRuleSeverity("anchor-broken"),
               message: `Cross-file anchor broken: "${link.href}" target anchor #${link.anchorTarget} not found in ${link.filePath}.`,
               file: filePath,
               line: link.line,

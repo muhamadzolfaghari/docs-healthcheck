@@ -1,13 +1,16 @@
 export type ValidationSeverity = "error" | "warning" | "info";
 
-export type ValidationRuleId =
-  | "heading-missing-h1"
-  | "heading-multiple-h1"
-  | "heading-hierarchy"
-  | "heading-duplicate"
-  | "heading-empty-section"
-  | "anchor-broken"
-  | "link-missing-file";
+export const VALIDATION_RULE_IDS = [
+  "heading-missing-h1",
+  "heading-multiple-h1",
+  "heading-hierarchy",
+  "heading-duplicate",
+  "heading-empty-section",
+  "anchor-broken",
+  "link-missing-file",
+] as const;
+
+export type ValidationRuleId = (typeof VALIDATION_RULE_IDS)[number];
 
 
 export interface HeadingNode {

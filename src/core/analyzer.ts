@@ -40,13 +40,19 @@ export function analyzeMarkdownContent(
   content: string,
   filePath = "README.md",
   baseDir = process.cwd(),
-  _config: ValidationConfig = {}
+  config: ValidationConfig = {}
 ): DocValidationResult {
   const doc = parseMarkdown(content);
   const headingIssues = validateHeadings(doc, filePath);
   const linkIssues = validateLinksAndAnchors(doc, filePath, baseDir);
 
-  const issues = [...headingIssues, ...linkIssues];
+  const detectedIssues = [...headingIssues, ...linkIssues];
+  const issues = detectedIssues
+    .filter((issue) => config.rules?.[issue.ruleId]?.enabled !== false)
+    .map((issue) => {
+      const severityOverride = config.rules?.[issue.ruleId]?.severity;
+      return severityOverride ? { ...issue, severity: severityOverride } : issue;
+    });
   const hasHeadings = doc.headings.length > 0;
   const score = calculateDocumentScore(
     issues,
