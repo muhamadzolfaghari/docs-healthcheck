@@ -32,7 +32,8 @@ export function runCli(argv = process.argv): void {
   // Default Command: scan (or --fix)
   program
     .command("scan [path]", { isDefault: true })
-    .description("Full documentation health check for repository or directory (default)")
+    .alias("lint")
+    .description("Full documentation health check for repository or directory (default; lint is an alias)")
     .option("--fix", "Shortcut to repair documentation issues (equivalent to fix [path])")
     .option("--dry-run", "Preview proposed repairs without modifying files (used with --fix)")
     .option("-y, --yes", "Automatically apply all safe deterministic repairs (used with --fix)")
