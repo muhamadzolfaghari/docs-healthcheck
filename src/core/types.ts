@@ -28,9 +28,13 @@ export interface MarkdownLinkNode {
   isLocalAnchor: boolean;
   isLocalFile: boolean;
   isExternal: boolean;
+  isImage?: boolean;
+  isReferenceDef?: boolean;
+  refLabel?: string;
   anchorTarget?: string;
   filePath?: string;
 }
+
 
 export interface ValidationIssue {
   ruleId: ValidationRuleId;

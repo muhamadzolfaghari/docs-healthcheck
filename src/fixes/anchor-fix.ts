@@ -4,6 +4,7 @@ import { DocValidationResult, ValidationIssue } from "../core/types.js";
 import { FixProposal } from "./types.js";
 import { parseMarkdown } from "../markdown/parser.js";
 import { extractAvailableAnchors } from "../markdown/anchors.js";
+import { extractHeadings } from "../markdown/headings.js";
 
 /**
  * Computes simple Levenshtein edit distance
@@ -30,7 +31,7 @@ function levenshtein(a: string, b: string): number {
 }
 
 /**
- * Plans deterministic repairs for broken anchor issues
+ * Plans deterministic repairs for broken anchor issues (local and cross-file)
  */
 export function planAnchorFix(
   issue: ValidationIssue,
@@ -39,46 +40,70 @@ export function planAnchorFix(
 ): FixProposal | null {
   if (issue.ruleId !== "anchor-broken") return null;
 
-  const resolved = path.isAbsolute(fileResult.file)
+  const currentFileAbs = path.isAbsolute(fileResult.file)
     ? fileResult.file
     : path.resolve(baseDir, fileResult.file);
+  const currentFileDir = path.dirname(currentFileAbs);
 
-  if (!fs.existsSync(resolved)) return null;
+  if (!fs.existsSync(currentFileAbs)) return null;
 
-  const content = fs.readFileSync(resolved, "utf8");
-  const doc = parseMarkdown(content);
-  const availableAnchors = Array.from(extractAvailableAnchors(content, doc.headings));
-
-  // Extract the broken anchor target from the issue message or line
+  const content = fs.readFileSync(currentFileAbs, "utf8");
   const lines = content.split(/\r?\n/);
   const targetLine = lines[issue.line - 1] || "";
-  
-  // Find markdown links on this line: [text](#anchor)
-  const linkRegex = /\[([^\]]+)\]\((#[^)]+)\)/g;
-  let match: RegExpExecArray | null;
-  let brokenHref = "";
+
+  // Check if this is a cross-file anchor or a local anchor
+  const crossFileMatch = /Cross-file anchor broken: "([^"]+)" target anchor #([a-zA-Z0-9_-]+) not found in ([^.]+)/i.exec(
+    issue.message
+  );
+
+  let targetFileForAnchors = currentFileAbs;
   let brokenAnchor = "";
+  let brokenHref = "";
+  let targetFilePath = "";
 
-  while ((match = linkRegex.exec(targetLine)) !== null) {
-    const href = match[2];
-    const anchor = href.slice(1);
-    if (!availableAnchors.includes(anchor.toLowerCase())) {
-      brokenHref = href;
-      brokenAnchor = anchor;
-      break;
+  if (crossFileMatch) {
+    brokenHref = crossFileMatch[1];
+    brokenAnchor = crossFileMatch[2];
+    const hashIdx = brokenHref.indexOf("#");
+    if (hashIdx !== -1) {
+      targetFilePath = brokenHref.slice(0, hashIdx);
+      targetFileForAnchors = path.resolve(currentFileDir, targetFilePath);
+    }
+  } else {
+    // Look for link in target line: [text](#anchor) or [text](./file.md#anchor) or [label]: #anchor
+    const linkRegex = /(?:\[([^\]]+)\]\(([^)\s]+)\)|^[ \t]{0,3}\[([^\]]+)\]:\s*(\S+)|<a\b[^>]*\bhref=["']([^"']+)["'])/g;
+    let match: RegExpExecArray | null;
+
+    while ((match = linkRegex.exec(targetLine)) !== null) {
+      const href = match[2] || match[4] || match[5];
+      if (!href) continue;
+
+      if (href.startsWith("#")) {
+        brokenHref = href;
+        brokenAnchor = href.slice(1);
+        targetFileForAnchors = currentFileAbs;
+        break;
+      } else if (href.includes("#") && !href.startsWith("http://") && !href.startsWith("https://")) {
+        const hashIdx = href.indexOf("#");
+        targetFilePath = href.slice(0, hashIdx);
+        brokenAnchor = href.slice(hashIdx + 1);
+        brokenHref = href;
+        targetFileForAnchors = path.resolve(currentFileDir, targetFilePath);
+        break;
+      }
+    }
+
+    if (!brokenAnchor) {
+      const msgMatch = /targeting non-existent anchor #([a-zA-Z0-9_-]+)/.exec(issue.message);
+      if (msgMatch) {
+        brokenAnchor = msgMatch[1];
+        brokenHref = `#${brokenAnchor}`;
+        targetFileForAnchors = currentFileAbs;
+      }
     }
   }
 
-  if (!brokenAnchor) {
-    // Fallback: match from issue message
-    const msgMatch = /targeting non-existent anchor #([a-zA-Z0-9_-]+)/.exec(issue.message);
-    if (msgMatch) {
-      brokenAnchor = msgMatch[1];
-      brokenHref = `#${brokenAnchor}`;
-    }
-  }
-
-  if (!brokenAnchor) {
+  if (!brokenAnchor || !fs.existsSync(targetFileForAnchors)) {
     return {
       id: `anchor-broken:${fileResult.file}:${issue.line}`,
       ruleId: "anchor-broken",
@@ -87,16 +112,31 @@ export function planAnchorFix(
       confidence: "low",
       title: `Broken anchor on line ${issue.line}`,
       description: issue.message,
-      reason: "Could not safely determine target link position",
+      reason: "Could not safely locate anchor destination file",
       line: issue.line,
       deterministic: false,
       operation: {
         type: "manual",
         file: fileResult.file,
         reason: "Anchor link needs manual verification",
-        suggestions: availableAnchors.map((a) => `#${a}`),
+        suggestions: [],
       },
     };
+  }
+
+  // Extract available anchors from the target file
+  let availableAnchors: string[] = [];
+  if (targetFileForAnchors === currentFileAbs) {
+    const doc = parseMarkdown(content);
+    availableAnchors = Array.from(extractAvailableAnchors(content, doc.headings));
+  } else {
+    try {
+      const targetContent = fs.readFileSync(targetFileForAnchors, "utf8");
+      const targetHeadings = extractHeadings(targetContent);
+      availableAnchors = Array.from(extractAvailableAnchors(targetContent, targetHeadings));
+    } catch {
+      availableAnchors = [];
+    }
   }
 
   // Find candidate matches among available anchors
@@ -122,7 +162,9 @@ export function planAnchorFix(
   // Exactly ONE strong deterministic candidate
   if (candidates.length === 1) {
     const bestCandidate = candidates[0];
-    const replacementHref = `#${bestCandidate.anchor}`;
+    const replacementHref = targetFilePath
+      ? `${targetFilePath}#${bestCandidate.anchor}`
+      : `#${bestCandidate.anchor}`;
     const lineContentAfter = targetLine.replace(brokenHref, replacementHref);
 
     return {
@@ -132,8 +174,8 @@ export function planAnchorFix(
       safety: "safe",
       confidence: "high",
       title: `Fix broken anchor "${brokenHref}" → "${replacementHref}"`,
-      description: `Replace broken internal fragment with matching heading anchor #${bestCandidate.anchor}`,
-      reason: `Heading #${bestCandidate.anchor} exists in the document and is an unambiguous match`,
+      description: `Replace broken fragment with matching heading anchor #${bestCandidate.anchor}`,
+      reason: `Heading #${bestCandidate.anchor} exists in ${path.basename(targetFileForAnchors)} and is an unambiguous match`,
       before: brokenHref,
       after: replacementHref,
       line: issue.line,
@@ -162,7 +204,7 @@ export function planAnchorFix(
     reason:
       candidates.length > 1
         ? `Multiple potential heading targets found: ${candidates.map((c) => `#${c.anchor}`).join(", ")}`
-        : "No matching heading anchor found in this document",
+        : `No matching heading anchor found in ${path.basename(targetFileForAnchors)}`,
     before: brokenHref,
     line: issue.line,
     deterministic: false,

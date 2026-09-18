@@ -81,4 +81,16 @@ describe("Fix Planner Unit Tests", () => {
     expect(plan.proposals.length).toBe(0);
     expect(plan.summary.total).toBe(0);
   });
+
+  it("plans SAFE repair for reference definitions and cross-file anchors", () => {
+    // Test on a simulated document with reference definition & cross-file link
+    const fixturePath = path.join(fixturesDir, "fix-link");
+    const report = runHealthCheck(fixturePath);
+    const plan = createFixPlan(report, fixturePath);
+
+    const linkProposal = plan.proposals.find((p) => p.ruleId === "link-missing-file");
+    expect(linkProposal).toBeDefined();
+    expect(linkProposal?.safety).toBe("safe");
+  });
 });
+
