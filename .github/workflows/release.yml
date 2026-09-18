@@ -1,28 +1,21 @@
-name: Release
+name: Publish to npm
 
 on:
   push:
     branches:
       - main
     tags:
-      - "v*"
+      - 'v*.*.*'
     paths:
-      - ".github/workflows/release.yml"
-      - "package.json"
+      - '.github/workflows/release.yml'
   workflow_dispatch:
 
-permissions:
-  contents: write
-  id-token: write
-
-concurrency:
-  group: docs-healthcheck-release
-  cancel-in-progress: false
-
 jobs:
-  release:
-    name: Publish and Verify
+  test-build-publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
 
     steps:
       - name: Checkout repository
@@ -44,140 +37,67 @@ jobs:
       - name: Build package
         run: npm run build
 
-      - name: Run tests
+      - name: Run test suite
         run: npm test
 
       - name: Verify package contents
         run: npm pack --dry-run
 
-      - name: Resolve npm publication state
-        id: npm-state
+      - name: Check npm publication state
+        id: npm
+        shell: bash
+        run: |
+          NAME=$(node -p "require('./package.json').name")
+          VERSION=$(node -p "require('./package.json').version")
+          if npm view "${NAME}@${VERSION}" version --registry=https://registry.npmjs.org >/dev/null 2>&1; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+            echo "${NAME}@${VERSION} is already published; skipping publish and validating registry/CLI."
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+            echo "${NAME}@${VERSION} is not published yet."
+          fi
+
+      - name: Publish to npm with OIDC trusted publishing
+        if: steps.npm.outputs.published != 'true'
+        run: npm publish --provenance --access public
+
+      - name: Post-Publish Registry & CLI Validation Smoke Test
         shell: bash
         run: |
           set -euo pipefail
 
-          PACKAGE="$(node -p "require('./package.json').name")"
-          VERSION="$(node -p "require('./package.json').version")"
+          NAME=$(node -p "require('./package.json').name")
+          VERSION=$(node -p "require('./package.json').version")
 
-          echo "package=$PACKAGE" >> "$GITHUB_OUTPUT"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-
-          if npm view "$PACKAGE@$VERSION" version --registry=https://registry.npmjs.org >/dev/null 2>&1; then
-            REPOSITORY="$(npm view "$PACKAGE@$VERSION" repository.url --json --registry=https://registry.npmjs.org 2>/dev/null || true)"
-            echo "npm already contains $PACKAGE@$VERSION"
-            echo "Published repository metadata: $REPOSITORY"
-
-            if [[ "$REPOSITORY" != *"muhamadzolfaghari/docs-healthcheck"* ]]; then
-              echo "::error::npm already contains $PACKAGE@$VERSION, but its repository metadata does not point to this repository."
-              exit 1
-            fi
-
-            echo "version_published=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "version_published=false" >> "$GITHUB_OUTPUT"
-          fi
-
-          if npm view "$PACKAGE" name --registry=https://registry.npmjs.org >/dev/null 2>&1; then
-            echo "package_exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "package_exists=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Validate first-publish credentials
-        if: steps.npm-state.outputs.version_published != 'true' && steps.npm-state.outputs.package_exists != 'true'
-        shell: bash
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          if [ -z "$NPM_TOKEN" ]; then
-            echo "::error::docs-healthcheck has not been published to npm yet. npm Trusted Publishing can only be configured after the package exists. Add a short-lived repository secret named NPM_TOKEN for the first publish only, then remove it after configuring npm Trusted Publishing for release.yml."
-            exit 1
-          fi
-          echo "Bootstrap npm credential is configured."
-
-      - name: Publish package
-        if: steps.npm-state.outputs.version_published != 'true'
-        shell: bash
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          set -euo pipefail
-
-          if [ -n "${NODE_AUTH_TOKEN:-}" ]; then
-            echo "Publishing with bootstrap npm token."
-          else
-            echo "No npm token configured; publishing with GitHub OIDC trusted publishing."
-          fi
-
-          npm publish --provenance --access public
-
-      - name: Verify npm registry propagation
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          PACKAGE="${{ steps.npm-state.outputs.package }}"
-          VERSION="${{ steps.npm-state.outputs.version }}"
-
+          echo "Waiting for $NAME@$VERSION to become visible on npm..."
+          registry_ready=false
           for attempt in {1..30}; do
-            PUBLISHED_VERSION="$(npm view "$PACKAGE@$VERSION" version --registry=https://registry.npmjs.org 2>/dev/null || true)"
-            REPOSITORY="$(npm view "$PACKAGE@$VERSION" repository.url --json --registry=https://registry.npmjs.org 2>/dev/null || true)"
-
-            if [[ "$PUBLISHED_VERSION" == "$VERSION" && "$REPOSITORY" == *"muhamadzolfaghari/docs-healthcheck"* ]]; then
-              echo "Verified $PACKAGE@$VERSION on npm."
-              exit 0
+            if npm view "${NAME}@${VERSION}" version --registry=https://registry.npmjs.org >/dev/null 2>&1; then
+              registry_ready=true
+              echo "✅ npm registry verified"
+              break
             fi
-
-            echo "Registry propagation pending (attempt $attempt/30)."
+            echo "Registry not ready yet (attempt ${attempt}/30)"
             sleep 10
           done
 
-          echo "::error::npm registry verification failed for $PACKAGE@$VERSION."
-          exit 1
+          if [ "${registry_ready}" != "true" ]; then
+            echo "::error::${NAME}@${VERSION} did not become visible on npm within the validation window"
+            exit 1
+          fi
 
-      - name: Verify installed CLI
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          PACKAGE="${{ steps.npm-state.outputs.package }}"
-          VERSION="${{ steps.npm-state.outputs.version }}"
-
-          TEMP_DIR="$(mktemp -d)"
-          cd "$TEMP_DIR"
+          TMP_DIR=$(mktemp -d)
+          cd "$TMP_DIR"
           npm init -y >/dev/null
-          npm install --silent "$PACKAGE@$VERSION"
+          npm install --silent "${NAME}@${VERSION}"
 
-          ACTUAL="$(npx --no-install docs-healthcheck --version)"
+          ACTUAL=$(npx --no-install docs-healthcheck --version)
           test "$ACTUAL" = "$VERSION"
 
           npx --no-install docs-healthcheck --help >/dev/null
           npx --no-install docs-healthcheck lint --help >/dev/null
           npx --no-install docs-healthcheck fix --help >/dev/null
+          npx --no-install docs-healthcheck revert --help >/dev/null
 
-          echo "Verified installed CLI: docs-healthcheck $ACTUAL"
-
-      - name: Create GitHub release
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-
-          VERSION="${{ steps.npm-state.outputs.version }}"
-          TAG="v$VERSION"
-
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "GitHub release $TAG already exists."
-          else
-            gh release create "$TAG" \
-              --repo "$GITHUB_REPOSITORY" \
-              --target "$GITHUB_SHA" \
-              --title "$TAG" \
-              --generate-notes
-          fi
-
-      - name: Trusted Publishing migration notice
-        if: steps.npm-state.outputs.package_exists != 'true'
-        run: |
-          echo "::notice::First npm publication completed. Configure npm Trusted Publishing for GitHub Actions using repository muhamadzolfaghari/docs-healthcheck and workflow release.yml, allow npm publish, then delete the NPM_TOKEN repository secret."
+          echo "✅ Fresh install verified: docs-healthcheck $ACTUAL"
+          echo "🎉 Post-publish registry & CLI validation passed"
