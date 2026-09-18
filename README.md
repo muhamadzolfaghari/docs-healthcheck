@@ -22,6 +22,7 @@ The browser playground runs locally in the tab: paste Markdown or open a local `
 ## Table of Contents
 
 - [Why docs-healthcheck?](#why-docs-healthcheck)
+- [Rule Sources & Single Source of Truth](#rule-sources--single-source-of-truth)
 - [Quick Start](#quick-start)
 - [Repair Safety Model](#repair-safety-model)
 - [Deterministic Repair Capabilities](#deterministic-repair-capabilities)
@@ -56,8 +57,8 @@ Markdown repositories accumulate problems that normal formatting tools do not al
 - broken cross-file anchors
 - stale managed tables of contents
 - heading hierarchy jumps
-- duplicate headings
-- empty sections
+- duplicate headings (advisory)
+- truly empty leaf sections (advisory heuristic)
 - missing repository documentation
 - moved or misspelled image paths
 - broken reference-style link definitions
@@ -84,6 +85,85 @@ Report the result
 ```
 
 It does **not** use an LLM to invent documentation content.
+
+---
+
+## Rule Sources & Single Source of Truth
+
+The authoritative metadata for validation rules is **`src/core/rule-catalog.ts`**.
+
+That catalog is the single source of truth for:
+
+- rule IDs
+- default severity
+- evidence/authority class
+- rationale
+- external references
+- repository-health weights
+- whether a repository-health check is required
+
+`src/core/rules.ts` implements detection; it does not define the default policy severity.
+`src/checks/*` detects repository state; `src/checks/repo-health.ts` applies the central catalog's weights and required/optional policy.
+
+The catalog is exported through the public TypeScript API so CLIs, agents, IDE integrations, and future MCP tooling can inspect the same rule metadata used by the package.
+
+### Evidence levels
+
+| Evidence class | What it means | Default enforcement |
+| --- | --- | --- |
+| **Platform correctness** | GitHub navigation/file behavior is objectively broken | `error` |
+| **Accessibility best practice** | Supported by W3C/WAI structural guidance | `warning` |
+| **Markdown style convention** | Established convention such as markdownlint, but valid Markdown may differ | `info` by default |
+| **Repository policy** | GitHub Community Standards–informed repository-health policy | weighted repository check |
+| **docs-healthcheck heuristic** | Useful quality signal owned by this project, not presented as Markdown law | `info` |
+
+### Markdown rules and references
+
+| Rule | Default | Evidence | References |
+| --- | :---: | --- | --- |
+| `anchor-broken` | ERROR | Platform correctness | [GitHub section links](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#section-links) |
+| `link-missing-file` | ERROR | Platform correctness | [GitHub relative links and image paths](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#relative-links) |
+| `heading-hierarchy` | WARNING | Accessibility best practice | [W3C WAI headings](https://www.w3.org/WAI/tutorials/page-structure/headings/), [markdownlint MD001](https://github.com/DavidAnson/markdownlint/blob/main/doc/md001.md) |
+| `heading-missing-h1` | INFO | Style convention | [markdownlint MD041](https://github.com/DavidAnson/markdownlint/blob/main/doc/md041.md), [W3C WAI headings](https://www.w3.org/WAI/tutorials/page-structure/headings/) |
+| `heading-multiple-h1` | INFO | Style convention | [markdownlint MD025](https://github.com/DavidAnson/markdownlint/blob/main/doc/md025.md) |
+| `heading-duplicate` | INFO | Style convention | [GitHub duplicate-anchor behavior](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#section-links), [markdownlint MD024](https://github.com/DavidAnson/markdownlint/blob/main/doc/md024.md) |
+| `heading-empty-section` | INFO | docs-healthcheck heuristic | [GitHub Docs writing best practices](https://docs.github.com/en/contributing/writing-for-github-docs/best-practices-for-github-docs), [CommonMark](https://spec.commonmark.org/current/) |
+
+### A heading does not need a prose paragraph
+
+`docs-healthcheck` does **not** require paragraph text immediately after a heading.
+
+All of these count as valid section content:
+
+- prose
+- lists and task lists
+- fenced code blocks
+- tables
+- images
+- blockquotes
+- HTML blocks
+- nested subsections
+
+A truly empty **leaf** section is only an `INFO` advisory. It is deliberately not a warning/error because CommonMark does not require every heading to contain a prose paragraph.
+
+### Repository-health rule sources
+
+README, LICENSE, CONTRIBUTING, and CODE_OF_CONDUCT checks are informed by
+[GitHub Community Profiles](https://docs.github.com/en/communities/setting-up-your-project-for-healthy-contributions/about-community-profiles-for-public-repositories).
+
+Checks such as `docs/`, examples/demo, and CHANGELOG are explicitly identified as docs-healthcheck policy/heuristics rather than universal Markdown or GitHub requirements.
+
+### Verification contract
+
+The rule documentation is executable rather than aspirational:
+
+- `tests/unit/rule-catalog.test.ts` fails if a Markdown rule is missing from the catalog or has no reference URL.
+- `tests/unit/markdown-scenarios.test.ts` exercises fully healthy, partially broken, severely broken, non-prose, nested-section, and configurable-policy cases.
+- `ValidationConfig.rules` can disable a rule or override its severity for project-specific policy.
+- CI exercises the package across Node 18/20/22 on Linux, macOS, and Windows.
+- The browser playground mirrors a useful subset, but the CLI/library catalog is authoritative for release gating.
+
+See [docs/rule-scenarios.md](./docs/rule-scenarios.md) for the executable scenario philosophy.
 
 ---
 
@@ -392,7 +472,7 @@ The current engine covers repository-level and Markdown-level checks including:
 
 | Area | Examples |
 | --- | --- |
-| Headings | missing H1, multiple H1s, hierarchy jumps, duplicates, empty sections |
+| Headings | missing/multiple H1 advisories, hierarchy warnings, duplicate-heading advisories, empty-leaf heuristics |
 | Anchors | internal anchors, reference anchors, cross-file fragments |
 | Files | broken relative paths, extension mismatches, case mismatches, moved files |
 | Media | Markdown image sources and HTML `img src` paths |
