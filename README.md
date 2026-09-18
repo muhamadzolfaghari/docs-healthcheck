@@ -4,9 +4,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![CI Status](https://img.shields.io/github/actions/workflow/status/muhamadzolfaghari/docs-healthcheck/test.yml?branch=main&style=flat-square)](https://github.com/muhamadzolfaghari/docs-healthcheck/actions)
 [![Coverage](https://img.shields.io/badge/Coverage-90%25-brightgreen.svg?style=flat-square)](https://github.com/muhamadzolfaghari/docs-healthcheck)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6.svg?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6.svg?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)\n[![Online Playground](https://img.shields.io/badge/Online-Playground-4ade80.svg?style=flat-square)](https://muhamadzolfaghari.github.io/docs-healthcheck/)
 
-> **Documentation quality gate and auto-repair engine for Markdown repositories.** Analyze documentation health, catch broken links and anchors, validate heading structure, generate TOCs, and safely repair deterministic issues.
+> **Documentation quality gate and auto-repair engine for Markdown repositories.** Analyze documentation health, catch broken links and anchors, validate heading structure, generate TOCs, and safely repair deterministic issues.\n\n**Try it in your browser:** https://muhamadzolfaghari.github.io/docs-healthcheck/ — paste or open Markdown, inspect issues, and apply deterministic SAFE fixes locally without uploading the document.
 
 ```
   ╔═══════════════════════════════════════════════════════════╗

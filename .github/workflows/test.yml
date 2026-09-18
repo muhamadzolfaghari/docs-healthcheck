@@ -2,9 +2,9 @@ name: Test & Lint
 
 on:
   push:
-    branches: [main, master]
+    branches: [main]
   pull_request:
-    branches: [main, master]
+    branches: [main]
 
 jobs:
   test:
@@ -17,10 +17,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
           cache: "npm"
@@ -33,6 +33,18 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Validate browser playground
+        if: matrix.os == 'ubuntu-latest' && matrix.node-version == '22.x'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s docs/index.html
+          test -s docs/styles.css
+          test -s docs/app.js
+          node --check docs/app.js
+          grep -q "docs-healthcheck Playground" docs/index.html
+          grep -q "Fix SAFE issues" docs/index.html
 
       - name: Verify healthy demo repository
         run: node ./bin/docs-healthcheck.js demo/healthy-docs --ci --min-score 90
