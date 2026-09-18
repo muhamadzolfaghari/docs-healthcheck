@@ -52,8 +52,7 @@
   - [Validate Markdown Content](#validate-markdown-content)
   - [Generate Table of Contents](#generate-table-of-contents)
 - [CI/CD & GitHub Actions Integration](#cicd--github-actions-integration)
-  - [As a GitHub Action](#as-a-github-action)
-  - [In GitHub Actions Workflow](#in-github-actions-workflow)
+  - [GitHub Actions Workflow](#github-actions-workflow)
 - [Unicode & RTL Support](#unicode--rtl-support)
 - [Future Roadmap](#future-roadmap)
 - [Contributing](#contributing)
@@ -288,18 +287,7 @@ const toc = generateToc(markdownContent, {
 
 ## CI/CD & GitHub Actions Integration
 
-### As a GitHub Action
-
-```yaml
-- name: Check Documentation Quality Gate
-  uses: muhamadzolfaghari/docs-healthcheck@v2
-  with:
-    path: "."
-    ci: "true"
-    min-score: "80"
-```
-
-### In GitHub Actions Workflow
+### GitHub Actions Workflow
 
 ```yaml
 name: Docs Quality Gate
@@ -352,5 +340,5 @@ Contributions are always welcome! Please see [CONTRIBUTING.md](./CONTRIBUTING.md
 
 ## License
 
-MIT © [Muhamad Zolfaghari](https://github.com/muhamadzolfaghari)
+MIT © [Mohammad Zolfaghari](https://github.com/muhamadzolfaghari)
 

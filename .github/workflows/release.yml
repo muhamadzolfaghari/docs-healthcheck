@@ -2,12 +2,17 @@ name: Release
 
 on:
   push:
+    branches:
+      - main
     tags:
       - "v*"
+    paths:
+      - ".github/workflows/release.yml"
+      - "package.json"
 
 jobs:
   release:
-    name: Publish to NPM
+    name: Publish and Verify
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -26,10 +31,89 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build & Test
-        run: npm run prepublishOnly
+      - name: Typecheck, build, and test
+        run: |
+          npm run lint
+          npm run prepublishOnly
 
-      - name: Publish Package
+      - name: Verify package contents
+        run: npm pack --dry-run
+
+      - name: Check npm publication state
+        id: npm-state
+        shell: bash
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          PACKAGE="$(node -p "require('./package.json').name")"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "package=$PACKAGE" >> "$GITHUB_OUTPUT"
+
+          if npm view "$PACKAGE@$VERSION" version --json >/tmp/npm-version.json 2>/dev/null; then
+            REPOSITORY="$(npm view "$PACKAGE@$VERSION" repository.url --json 2>/dev/null || true)"
+            echo "npm already contains $PACKAGE@$VERSION"
+            echo "Published repository metadata: $REPOSITORY"
+
+            if [[ "$REPOSITORY" != *"muhamadzolfaghari/docs-healthcheck"* ]]; then
+              echo "::error::npm already contains $PACKAGE@$VERSION, but its repository metadata does not point to this repository."
+              exit 1
+            fi
+
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "$PACKAGE@$VERSION is not published yet."
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish package
+        if: steps.npm-state.outputs.published != 'true'
         run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Verify npm registry propagation
+        shell: bash
+        run: |
+          PACKAGE="${{ steps.npm-state.outputs.package }}"
+          VERSION="${{ steps.npm-state.outputs.version }}"
+
+          for attempt in {1..30}; do
+            PUBLISHED_VERSION="$(npm view "$PACKAGE@$VERSION" version --json 2>/dev/null | tr -d '"' || true)"
+            REPOSITORY="$(npm view "$PACKAGE@$VERSION" repository.url --json 2>/dev/null || true)"
+
+            if [[ "$PUBLISHED_VERSION" == "$VERSION" && "$REPOSITORY" == *"muhamadzolfaghari/docs-healthcheck"* ]]; then
+              echo "Verified $PACKAGE@$VERSION on npm."
+              exit 0
+            fi
+
+            echo "Registry propagation pending (attempt $attempt/30)."
+            sleep 10
+          done
+
+          echo "::error::npm registry verification failed for $PACKAGE@$VERSION."
+          exit 1
+
+      - name: Verify installed CLI
+        shell: bash
+        run: |
+          PACKAGE="${{ steps.npm-state.outputs.package }}"
+          VERSION="${{ steps.npm-state.outputs.version }}"
+          ACTUAL="$(npm exec --yes --package "$PACKAGE@$VERSION" -- docs-healthcheck --version)"
+          test "$ACTUAL" = "$VERSION"
+          echo "Verified installed CLI: docs-healthcheck $ACTUAL"
+
+      - name: Create GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ steps.npm-state.outputs.version }}"
+          TAG="v$VERSION"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "GitHub release $TAG already exists."
+          else
+            gh release create "$TAG" \
+              --target "$GITHUB_SHA" \
+              --title "$TAG" \
+              --generate-notes
+          fi
