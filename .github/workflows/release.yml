@@ -41,11 +41,11 @@ jobs:
       - name: Typecheck
         run: npm run lint
 
-      - name: Run tests
-        run: npm test
-
       - name: Build package
         run: npm run build
+
+      - name: Run tests
+        run: npm test
 
       - name: Verify package contents
         run: npm pack --dry-run
