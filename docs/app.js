@@ -216,6 +216,8 @@ function analyzeMarkdown(text) {
   for (let i = 0; i < headings.length; i++) {
     const heading = headings[i];
     if (/^(table\s+of\s+contents|toc)$/i.test(heading.text)) continue;
+    const nextHeading = headings[i + 1];
+    if (nextHeading && nextHeading.level > heading.level) continue;
     const start = heading.line;
     const end = i + 1 < headings.length ? headings[i + 1].line - 1 : lines.length;
     const body = lines.slice(start, end).join("\n").trim();

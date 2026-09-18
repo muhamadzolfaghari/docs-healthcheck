@@ -23,6 +23,11 @@ The browser playground runs locally in the tab: paste Markdown or open a local `
 
 - [Why docs-healthcheck?](#why-docs-healthcheck)
 - [Rule Sources & Single Source of Truth](#rule-sources--single-source-of-truth)
+  - [Evidence levels](#evidence-levels)
+  - [Markdown rules and references](#markdown-rules-and-references)
+  - [A heading does not need a prose paragraph](#a-heading-does-not-need-a-prose-paragraph)
+  - [Repository-health rule sources](#repository-health-rule-sources)
+  - [Verification contract](#verification-contract)
 - [Quick Start](#quick-start)
 - [Repair Safety Model](#repair-safety-model)
 - [Deterministic Repair Capabilities](#deterministic-repair-capabilities)
