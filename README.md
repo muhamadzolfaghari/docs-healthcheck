@@ -3,28 +3,26 @@
 [![npm version](https://img.shields.io/npm/v/docs-healthcheck.svg?style=flat-square&color=blue)](https://www.npmjs.com/package/docs-healthcheck)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![CI Status](https://img.shields.io/github/actions/workflow/status/muhamadzolfaghari/docs-healthcheck/test.yml?branch=main&style=flat-square)](https://github.com/muhamadzolfaghari/docs-healthcheck/actions)
-[![Coverage](https://img.shields.io/badge/Coverage-86%25-brightgreen.svg?style=flat-square)](https://github.com/muhamadzolfaghari/docs-healthcheck)
+[![Coverage](https://img.shields.io/badge/Coverage-90%25-brightgreen.svg?style=flat-square)](https://github.com/muhamadzolfaghari/docs-healthcheck)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6.svg?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 
-> **Documentation quality gate for Markdown repositories.** Validate heading structure, generate TOCs, catch broken links and anchors, and evaluate repository documentation health scores in CI/CD.
+> **Documentation quality gate and auto-repair engine for Markdown repositories.** Analyze documentation health, catch broken links and anchors, validate heading structure, generate TOCs, and safely repair deterministic issues.
 
 ```
   ╔═══════════════════════════════════════════════════════════╗
-  ║              DOCUMENTATION HEALTH REPORT                  ║
+  ║          DOCUMENTATION HEALTH REPAIR REPORT               ║
   ╚═══════════════════════════════════════════════════════════╝
 
-  Health Score: 96/100  PASS 
-  Scanned: 6 files | 38 headings | 24 links
+  Mode:  LIVE REPAIR 
+  Health Score: 73/100 → 91/100 (+18 health points)
 
-  Repository Documentation Standards:
-  ✔ README File — Found README.md (180 lines)
-  ✔ License File — Found LICENSE
-  ✔ Changelog File — Found CHANGELOG.md
-  ✔ Contributing Guide — Found CONTRIBUTING.md
-  ✔ Code of Conduct — Found CODE_OF_CONDUCT.md
-  ✔ Documentation Directory — Found docs/ directory with 4 items
+  Applied Repairs:
+  ✔  SAFE  Regenerate Table of Contents in README.md [README.md]
+  ✔  SAFE  Fix broken anchor "#instalation" → "#installation" [README.md]
+  ✔  SAFE  Fix file link "./docs/guide-doc.md" → "./docs/guide-docs.md" [README.md]
 
-  ✔ All markdown files passed validation rules!
+  Skipped Confirmation-Required Changes:
+  ○ Create starter CHANGELOG.md template (Requires interactive confirmation)
 ```
 
 ---
@@ -33,32 +31,24 @@
 
 ## Table of Contents
 
-- [Table of Contents](#table-of-contents)
+- [Auto-Fix & Deterministic Repair Engine](#auto-fix--deterministic-repair-engine)
+- [Fix Safety Classification](#fix-safety-classification)
 - [Features](#features)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
-  - [1. Full Repository Healthcheck](#1-full-repository-healthcheck)
-  - [2. Generate / Update Table of Contents](#2-generate--update-table-of-contents)
-  - [3. Validate a Specific Markdown File](#3-validate-a-specific-markdown-file)
-- [Live Demo Repositories](#live-demo-repositories)
-- [Local Testing & Pre-publish Verification](#local-testing--pre-publish-verification)
-  - [1. Run quality checks](#1-run-quality-checks)
-  - [2. Run the CLI locally](#2-run-the-cli-locally)
-  - [3. Verify demo exit codes](#3-verify-demo-exit-codes)
-  - [4. Test the actual npm tarball](#4-test-the-actual-npm-tarball)
-  - [5. Verify the installed package API](#5-verify-the-installed-package-api)
+  - [1. Read-Only Health Analysis](#1-read-only-health-analysis)
+  - [2. Preview Proposed Repairs (Dry-Run)](#2-preview-proposed-repairs-dry-run)
+  - [3. Interactive Repair](#3-interactive-repair)
+  - [4. Apply Safe Deterministic Fixes](#4-apply-safe-deterministic-fixes)
 - [CLI Reference](#cli-reference)
-  - [Global Options & Flags](#global-options--flags)
-  - [Commands](#commands)
-    - [docs-healthcheck toc](#docs-healthcheck-toc)
   - [Exit Codes](#exit-codes)
 - [Validation Rules](#validation-rules)
 - [Programmatic API](#programmatic-api)
+  - [Fix Documentation Programmatically](#fix-documentation-programmatically)
   - [Check Documentation](#check-documentation)
   - [Validate Markdown Content](#validate-markdown-content)
   - [Generate Table of Contents](#generate-table-of-contents)
 - [CI/CD & GitHub Actions Integration](#cicd--github-actions-integration)
-  - [GitHub Actions Workflow](#github-actions-workflow)
 - [Unicode & RTL Support](#unicode--rtl-support)
 - [Future Roadmap](#future-roadmap)
 - [Contributing](#contributing)
@@ -68,15 +58,59 @@
 
 ---
 
+## Auto-Fix & Deterministic Repair Engine
+
+`docs-healthcheck` v2.1.0 introduces an interactive and deterministic auto-repair engine following the core principle:
+
+> **Detect problems → Explain them → Offer safe fixes → Apply approved changes → Rerun validation → Show score improvement.**
+
+`docs-healthcheck` **never invents or rewrites documentation prose**. It performs strictly deterministic, reviewable, and testable repairs.
+
+```bash
+# Read-only analysis
+npx docs-healthcheck
+
+# Preview proposed fixes without touching any files
+npx docs-healthcheck fix --dry-run
+
+# Interactive repair (prompts for confirmation)
+npx docs-healthcheck fix
+
+# Non-interactive / CI safe auto-repair (applies only SAFE deterministic fixes)
+npx docs-healthcheck fix --yes
+
+# Root shortcut alias
+npx docs-healthcheck --fix --yes
+```
+
+---
+
+## Fix Safety Classification
+
+Every proposed repair is classified into one of three safety levels:
+
+| Fix Type | Safety Classification | Auto-Applied with `--yes`? | Description |
+| :--- | :---: | :---: | :--- |
+| **Managed TOC Sync** | `SAFE` | **Yes** | Re-indexes headings and synchronizes `<!-- TOC START -->` blocks |
+| **Unique Broken Anchor** | `SAFE` | **Yes** | Repairs misspelled fragment (e.g. `#instalation` → `#installation`) when exactly one heading matches |
+| **Unique Broken Relative Link** | `SAFE` | **Yes** | Fixes local relative path (e.g. `./docs/guide-doc.md` → `./docs/guide-docs.md`) when single candidate matches |
+| **Heading Hierarchy Skip** | `CONFIRM` | **No** | Adjusts skipped levels (e.g. H1 → H3 to H1 → H2). Requires interactive confirmation |
+| **Missing Standard Doc Template** | `CONFIRM` | **No** | Creates generic starter `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, or `CHANGELOG.md` with placeholders |
+| **Ambiguous Broken Link** | `MANUAL` | **No** | Lists potential candidates for manual author resolution |
+| **Empty Section / Duplicate Heading**| `MANUAL` | **No** | Requires human decision; no synthetic prose is ever generated |
+
+---
+
 ## Features
 
-- 🎯 **Documentation Health Gate:** Computes an actionable 0–100 documentation score evaluating repository standards (`README.md`, `LICENSE`, `CHANGELOG.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `docs/`, `examples/`).
+- 🛠️ **Deterministic Repair Engine:** Safe, reviewable, and idempotent auto-repairs for anchors, links, and TOCs.
+- 🎯 **Documentation Health Gate:** Computes an actionable 0–100 documentation score evaluating repository standards (`README.md`, `LICENSE`, `package.json`, `CHANGELOG.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `docs/`, `examples/`).
 - 📑 **Advanced Table of Contents Generator:** Automated TOC creation with in-place marker synchronization (`<!-- TOC START -->` ... `<!-- TOC END -->`).
 - 🔗 **Broken Anchor & Dead Link Detection:** Catches broken internal fragment links (`#missing-anchor`) and nonexistent relative file paths (`./docs/guide.md`).
 - 🏷️ **Cross-File Anchor Resolution:** Verifies that anchors referenced in other markdown files (`./api.md#endpoints`) actually exist.
 - 📐 **Heading Hierarchy Linter:** Detects missing document titles, multiple H1s, heading level jumping (e.g., H1 -> H3), and duplicate headings causing anchor collisions.
 - 🌍 **Full Unicode & RTL/Persian Support:** 100% GitHub-compatible slugification supporting Persian, Arabic, Cyrillic, CJK, and emojis.
-- ⚡ **Blazing Fast & Ultra-Lean:** Zero heavy dependencies, written in modern TypeScript, with sub-30ms execution.
+- ⚡ **Blazing Fast & Ultra-Lean:** Zero heavy runtime dependencies, native Node APIs, sub-30ms execution.
 
 ---
 
@@ -97,239 +131,28 @@ npx docs-healthcheck .
 
 ## Quick Start
 
-### 1. Full Repository Healthcheck
-
-Run in the root of your project:
+### 1. Read-Only Health Analysis
 
 ```bash
-docs-healthcheck .
+npx docs-healthcheck .
 ```
 
-### 2. Generate / Update Table of Contents
-
-Add markers to your `README.md`:
-
-```markdown
-<!-- TOC START -->
-<!-- TOC END -->
-```
-
-Then run:
+### 2. Preview Proposed Repairs (Dry-Run)
 
 ```bash
-docs-healthcheck toc README.md --write
+npx docs-healthcheck fix . --dry-run
 ```
 
-### 3. Validate a Specific Markdown File
+### 3. Interactive Repair
 
 ```bash
-docs-healthcheck check docs/guide.md
+npx docs-healthcheck fix .
 ```
 
----
-
-
-## Live Demo Repositories
-
-The repository includes two intentionally different documentation fixtures you can run locally:
-
-- [`demo/healthy-docs`](./demo/healthy-docs/README.md) — a complete documentation set expected to pass the quality gate.
-- [`demo/broken-docs`](./demo/broken-docs/README.md) — intentionally contains broken anchors, missing files, heading problems, and missing repository documentation so you can see the failures.
-
-Build the CLI once:
+### 4. Apply Safe Deterministic Fixes
 
 ```bash
-npm ci
-npm run build
-```
-
-Run the healthy example:
-
-```bash
-node ./bin/docs-healthcheck.js demo/healthy-docs
-```
-
-Run the intentionally broken example:
-
-```bash
-node ./bin/docs-healthcheck.js demo/broken-docs
-```
-
-Try machine-readable output:
-
-```bash
-node ./bin/docs-healthcheck.js demo/healthy-docs --json
-node ./bin/docs-healthcheck.js demo/broken-docs --markdown
-```
-
-The CI matrix also executes both demos: the healthy repository must pass, while the broken repository must be rejected. The top-level project health check ignores `demo/` so intentionally invalid demonstration files never contaminate the package's own health score.
-
----
-
-
-## Local Testing & Pre-publish Verification
-
-Before publishing a release, test both the source checkout and the exact npm tarball that consumers will install.
-
-### 1. Run quality checks
-
-From the repository root:
-
-```bash
-git checkout main
-git pull
-
-npm ci
-npm run lint
-npm test
-npm run build
-```
-
-The expected baseline for v2.0.0 is:
-
-```text
-Test Files  11 passed (11)
-Tests       49 passed (49)
-```
-
-### 2. Run the CLI locally
-
-Verify the built CLI and version:
-
-```bash
-node ./bin/docs-healthcheck.js --version
-```
-
-Expected:
-
-```text
-2.0.0
-```
-
-Run both included demos:
-
-```bash
-node ./bin/docs-healthcheck.js demo/healthy-docs
-node ./bin/docs-healthcheck.js demo/broken-docs
-```
-
-You can also test machine-readable reporters:
-
-```bash
-node ./bin/docs-healthcheck.js demo/healthy-docs --json
-node ./bin/docs-healthcheck.js demo/broken-docs --markdown
-```
-
-### 3. Verify demo exit codes
-
-The healthy demo must pass:
-
-```bash
-node ./bin/docs-healthcheck.js demo/healthy-docs --ci --min-score 90
-echo "exit: $?"
-```
-
-Expected:
-
-```text
-exit: 0
-```
-
-The intentionally broken demo must fail:
-
-```bash
-node ./bin/docs-healthcheck.js demo/broken-docs --ci
-echo "exit: $?"
-```
-
-Expected:
-
-```text
-exit: 2
-```
-
-### 4. Test the actual npm tarball
-
-`npm pack` is the closest local simulation of what npm users receive:
-
-```bash
-npm pack
-```
-
-Expected artifact:
-
-```text
-docs-healthcheck-2.0.0.tgz
-```
-
-Install that tarball into a clean consumer project:
-
-```bash
-mkdir -p /tmp/docs-healthcheck-test
-cd /tmp/docs-healthcheck-test
-
-npm init -y
-npm install /absolute/path/to/docs-healthcheck/docs-healthcheck-2.0.0.tgz
-
-npx docs-healthcheck --version
-```
-
-Expected:
-
-```text
-2.0.0
-```
-
-Then run the installed CLI against a real documentation directory:
-
-```bash
-npx docs-healthcheck /absolute/path/to/docs-healthcheck/demo/healthy-docs
-```
-
-### 5. Verify the installed package API
-
-From the clean consumer project:
-
-```bash
-node - <<'NODE'
-const { checkDocumentation } = require("docs-healthcheck");
-
-const report = checkDocumentation(
-  "/absolute/path/to/docs-healthcheck/demo/healthy-docs"
-);
-
-console.log({
-  score: report.score,
-  passed: report.passed,
-  errors: report.totalErrors,
-  warnings: report.totalWarnings,
-});
-NODE
-```
-
-A release is ready to publish when the full chain succeeds:
-
-```text
-TypeScript
-   ✓
-Tests
-   ✓
-Build
-   ✓
-Source CLI
-   ✓
-Healthy demo
-   ✓
-Broken-demo rejection
-   ✓
-npm tarball
-   ✓
-Fresh consumer install
-   ✓
-Installed CLI
-   ✓
-Programmatic API
-   ✓
+npx docs-healthcheck fix . --yes
 ```
 
 ---
@@ -339,49 +162,30 @@ Programmatic API
 ```
 Usage: docs-healthcheck [command] [options]
 
-Documentation quality gate for Markdown repositories.
+Documentation quality gate and auto-repair engine for Markdown repositories.
 
 Commands:
   scan [path]        Full documentation health check for repository or directory (default)
+  fix [path]         Analyze and deterministically repair documentation issues
   check <file>       Validate a specific Markdown file for broken links, anchors, and heading structure
   toc <file>         Generate or update Table of Contents for a Markdown file
   help [command]     Display help for command
 
 Options:
   -V, --version      Output the version number
+  --fix              Shortcut to repair documentation issues (equivalent to fix [path])
+  --dry-run          Preview proposed repairs without modifying files
+  -y, --yes          Automatically apply all safe deterministic repairs
+  --safe-only        Apply only safe deterministic repairs (alias for --yes)
   --json             Output results in JSON format
   --markdown         Output results in GitHub Markdown format
-  --ci               Run in CI mode with non-zero exit code on validation failure
-  --strict           Treat warnings as errors
+  --verbose          Show detailed verbose diagnostic information
+  --ci               Run in CI mode with strict exit code (2) on any errors
+  --strict           Treat warnings as errors (exit code 2)
   --min-score <n>    Minimum acceptable health score (0-100, default: 70)
   --silent           Suppress stdout and only use exit code
   -h, --help         Display help for command
 ```
-
-### Global Options & Flags
-
-| Flag | Description |
-| :--- | :--- |
-| `--json` | Outputs report as a machine-readable JSON object |
-| `--markdown` | Outputs report as a GitHub-flavored Markdown table (ideal for PR comments) |
-| `--ci` | Uses CI-friendly non-zero exit codes when validation fails or the score is below threshold |
-| `--strict` | Fails even on warnings |
-| `--min-score <n>` | Customizes passing score threshold (default: `70`) |
-
-### Commands
-
-#### `docs-healthcheck toc <file>`
-
-| Option | Description | Default |
-| :--- | :--- | :--- |
-| `-w, --write` | Injects/updates TOC directly inside the file | `false` |
-| `--min-depth <n>` | Minimum heading level to include | `2` |
-| `--max-depth <n>` | Maximum heading level to include | `6` |
-| `--ordered` | Generate numbered list (`1. `, `2. `) instead of bullets | `false` |
-| `--title <string>`| Custom heading title for TOC section | `## Table of Contents` |
-| `--no-title` | Omit section title heading | `false` |
-
----
 
 ### Exit Codes
 
@@ -395,31 +199,47 @@ Options:
 
 ## Validation Rules
 
-| Rule ID | Severity | Description |
-| :--- | :---: | :--- |
-| `heading-missing-h1` | `warning` | Document lacks a primary `# Document Title` |
-| `heading-multiple-h1` | `warning` | Document contains more than one top-level `# Title` |
-| `heading-hierarchy` | `warning` | Heading levels jump unexpectedly (e.g. `H1` followed directly by `H3`) |
-| `heading-duplicate` | `info` | Identical heading titles causing anchor collision or ambiguity |
-| `heading-empty-section` | `warning` | Heading has no body content or description under it |
-| `anchor-broken` | `error` | Internal link `[Text](#anchor)` targets non-existent section |
-| `link-missing-file` | `error` | Relative markdown link references a file that does not exist on disk |
-
+| Rule ID | Severity | Description | Fix Safety |
+| :--- | :---: | :--- | :---: |
+| `toc-outdated` | `warning` | Managed TOC block is out of sync with current headings | `SAFE` |
+| `anchor-broken` | `error` | Internal link `[Text](#anchor)` targets non-existent section | `SAFE` (if unique) / `MANUAL` |
+| `link-missing-file` | `error` | Relative markdown link references a file that does not exist on disk | `SAFE` (if unique) / `MANUAL` |
+| `heading-hierarchy` | `warning` | Heading levels jump unexpectedly (e.g. `H1` followed directly by `H3`) | `CONFIRM` |
+| `repo-*-missing` | `warning` | Repository missing standard guides (`CONTRIBUTING.md`, etc.) | `CONFIRM` |
+| `heading-missing-h1` | `warning` | Document lacks a primary `# Document Title` | `MANUAL` |
+| `heading-multiple-h1`| `warning` | Document contains more than one top-level `# Title` | `MANUAL` |
+| `heading-duplicate` | `info` | Identical heading titles causing anchor collision or ambiguity | `MANUAL` |
+| `heading-empty-section` | `warning` | Heading has no body content or description under it | `MANUAL` |
 
 ---
 
 ## Programmatic API
 
-`docs-healthcheck` is fully typed and exports standard ESM & CommonJS modules:
-
 ```ts
 import {
   checkDocumentation,
+  fixDocumentation,
+  createFixPlan,
+  executeFixPlan,
   validateMarkdown,
   generateToc,
   updateToc,
   slugify,
 } from "docs-healthcheck";
+```
+
+### Fix Documentation Programmatically
+
+```ts
+// Execute safe deterministic repairs
+const report = fixDocumentation("./my-project", {
+  safeOnly: true,
+  dryRun: false,
+});
+
+console.log(`Before: ${report.beforeScore}/100`);
+console.log(`After:  ${report.afterScore}/100 (+${report.scoreDelta})`);
+console.log(`Applied: ${report.applied.length} fixes`);
 ```
 
 ### Check Documentation
@@ -461,10 +281,8 @@ const toc = generateToc(markdownContent, {
 
 ## CI/CD & GitHub Actions Integration
 
-### GitHub Actions Workflow
-
 ```yaml
-name: Docs Quality Gate
+name: Documentation Quality & Repair Smoke Test
 
 on: [push, pull_request]
 
@@ -476,7 +294,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npx --yes docs-healthcheck . --ci --min-score 75
+      - run: npm ci
+      # Quality gate validation
+      - run: npx --yes docs-healthcheck . --ci --min-score 80
 ```
 
 ---
@@ -500,9 +320,8 @@ Generates exact GitHub-compliant slugs:
 
 ## Future Roadmap
 
-- 🎯 **v2.1.0:** External URL liveness validation, custom configuration files (`.docsrc.json` / `docs-healthcheck.config.js`), and documentation completeness heuristics.
-- 🚀 **v2.2.0:** Official GitHub Action release on GitHub Marketplace with PR inline annotations and automated summary comments.
-- 🤖 **v2.3.0:** Model Context Protocol (MCP) Server integration allowing AI agents (like Claude Desktop and Gemini) to query documentation quality and auto-apply suggested fixes.
+- 🎯 **v2.2:** External URL liveness validation (`http`/`https` checking with rate limiting and caching) and PR inline annotation reporter.
+- 🤖 **v2.3:** Model Context Protocol (MCP) Server integration allowing AI agents to query documentation health and apply deterministic auto-fixes.
 
 ---
 
@@ -515,4 +334,3 @@ Contributions are always welcome! Please see [CONTRIBUTING.md](./CONTRIBUTING.md
 ## License
 
 MIT © [Mohammad Zolfaghari](https://github.com/muhamadzolfaghari)
-

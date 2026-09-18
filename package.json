@@ -1,7 +1,8 @@
 {
   "name": "docs-healthcheck",
-  "version": "2.0.0",
-  "description": "Documentation quality gate for Markdown repositories. Validate structure, TOC, links, anchors, and documentation health.",
+  "version": "2.1.0",
+  "description": "Documentation quality gate and auto-repair engine for Markdown repositories. Validate structure, TOC, links, anchors, and documentation health.",
+
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",

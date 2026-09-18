@@ -43,5 +43,10 @@ jobs:
       - name: Run test suite with coverage
         run: npm run test:coverage
 
+      - name: Run Repair Smoke Test
+        run: |
+          node -e "const fs=require('node:fs'); const {execSync}=require('node:child_process'); const tmp='/tmp/docs-healthcheck-smoke-test'; fs.rmSync(tmp,{recursive:true,force:true}); fs.cpSync('demo/fixable-docs',tmp,{recursive:true}); execSync('node ./bin/docs-healthcheck.js fix '+tmp+' --yes',{stdio:'inherit'}); execSync('node ./bin/docs-healthcheck.js '+tmp+' --ci --min-score 85',{stdio:'inherit'});"
+
       - name: Run Self Health Check
         run: node ./bin/docs-healthcheck.js . --ci
+
