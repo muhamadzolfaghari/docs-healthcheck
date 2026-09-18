@@ -41,6 +41,12 @@
   - [2. Generate / Update Table of Contents](#2-generate--update-table-of-contents)
   - [3. Validate a Specific Markdown File](#3-validate-a-specific-markdown-file)
 - [Live Demo Repositories](#live-demo-repositories)
+- [Local Testing & Pre-publish Verification](#local-testing--pre-publish-verification)
+  - [1. Run quality checks](#1-run-quality-checks)
+  - [2. Run the CLI locally](#2-run-the-cli-locally)
+  - [3. Verify demo exit codes](#3-verify-demo-exit-codes)
+  - [4. Test the actual npm tarball](#4-test-the-actual-npm-tarball)
+  - [5. Verify the installed package API](#5-verify-the-installed-package-api)
 - [CLI Reference](#cli-reference)
   - [Global Options & Flags](#global-options--flags)
   - [Commands](#commands)
@@ -160,6 +166,174 @@ The CI matrix also executes both demos: the healthy repository must pass, while 
 
 ---
 
+
+## Local Testing & Pre-publish Verification
+
+Before publishing a release, test both the source checkout and the exact npm tarball that consumers will install.
+
+### 1. Run quality checks
+
+From the repository root:
+
+```bash
+git checkout main
+git pull
+
+npm ci
+npm run lint
+npm test
+npm run build
+```
+
+The expected baseline for v2.0.0 is:
+
+```text
+Test Files  11 passed (11)
+Tests       49 passed (49)
+```
+
+### 2. Run the CLI locally
+
+Verify the built CLI and version:
+
+```bash
+node ./bin/docs-healthcheck.js --version
+```
+
+Expected:
+
+```text
+2.0.0
+```
+
+Run both included demos:
+
+```bash
+node ./bin/docs-healthcheck.js demo/healthy-docs
+node ./bin/docs-healthcheck.js demo/broken-docs
+```
+
+You can also test machine-readable reporters:
+
+```bash
+node ./bin/docs-healthcheck.js demo/healthy-docs --json
+node ./bin/docs-healthcheck.js demo/broken-docs --markdown
+```
+
+### 3. Verify demo exit codes
+
+The healthy demo must pass:
+
+```bash
+node ./bin/docs-healthcheck.js demo/healthy-docs --ci --min-score 90
+echo "exit: $?"
+```
+
+Expected:
+
+```text
+exit: 0
+```
+
+The intentionally broken demo must fail:
+
+```bash
+node ./bin/docs-healthcheck.js demo/broken-docs --ci
+echo "exit: $?"
+```
+
+Expected:
+
+```text
+exit: 2
+```
+
+### 4. Test the actual npm tarball
+
+`npm pack` is the closest local simulation of what npm users receive:
+
+```bash
+npm pack
+```
+
+Expected artifact:
+
+```text
+docs-healthcheck-2.0.0.tgz
+```
+
+Install that tarball into a clean consumer project:
+
+```bash
+mkdir -p /tmp/docs-healthcheck-test
+cd /tmp/docs-healthcheck-test
+
+npm init -y
+npm install /absolute/path/to/docs-healthcheck/docs-healthcheck-2.0.0.tgz
+
+npx docs-healthcheck --version
+```
+
+Expected:
+
+```text
+2.0.0
+```
+
+Then run the installed CLI against a real documentation directory:
+
+```bash
+npx docs-healthcheck /absolute/path/to/docs-healthcheck/demo/healthy-docs
+```
+
+### 5. Verify the installed package API
+
+From the clean consumer project:
+
+```bash
+node - <<'NODE'
+const { checkDocumentation } = require("docs-healthcheck");
+
+const report = checkDocumentation(
+  "/absolute/path/to/docs-healthcheck/demo/healthy-docs"
+);
+
+console.log({
+  score: report.score,
+  passed: report.passed,
+  errors: report.totalErrors,
+  warnings: report.totalWarnings,
+});
+NODE
+```
+
+A release is ready to publish when the full chain succeeds:
+
+```text
+TypeScript
+   ✓
+Tests
+   ✓
+Build
+   ✓
+Source CLI
+   ✓
+Healthy demo
+   ✓
+Broken-demo rejection
+   ✓
+npm tarball
+   ✓
+Fresh consumer install
+   ✓
+Installed CLI
+   ✓
+Programmatic API
+   ✓
+```
+
+---
+
 ## CLI Reference
 
 ```
@@ -177,7 +351,7 @@ Options:
   -V, --version      Output the version number
   --json             Output results in JSON format
   --markdown         Output results in GitHub Markdown format
-  --ci               Run in CI mode with strict exit code (1) on any errors
+  --ci               Run in CI mode with non-zero exit code on validation failure
   --strict           Treat warnings as errors
   --min-score <n>    Minimum acceptable health score (0-100, default: 70)
   --silent           Suppress stdout and only use exit code
@@ -190,7 +364,7 @@ Options:
 | :--- | :--- |
 | `--json` | Outputs report as a machine-readable JSON object |
 | `--markdown` | Outputs report as a GitHub-flavored Markdown table (ideal for PR comments) |
-| `--ci` | Returns exit code `1` if any validation error occurs or score is below threshold |
+| `--ci` | Uses CI-friendly non-zero exit codes when validation fails or the score is below threshold |
 | `--strict` | Fails even on warnings |
 | `--min-score <n>` | Customizes passing score threshold (default: `70`) |
 
