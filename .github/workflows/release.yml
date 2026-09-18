@@ -15,7 +15,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write
 
     steps:
       - name: Checkout repository
@@ -57,9 +56,11 @@ jobs:
             echo "${NAME}@${VERSION} is not published yet."
           fi
 
-      - name: Publish to npm with OIDC trusted publishing
+      - name: Publish to npm
         if: steps.npm.outputs.published != 'true'
-        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
 
       - name: Post-Publish Registry & CLI Validation Smoke Test
         shell: bash
