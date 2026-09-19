@@ -1,9 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { execSync } from "child_process";
+import { readFileSync } from "fs";
 import path from "path";
 
 describe("CLI Integration Tests", () => {
   const binPath = path.resolve(__dirname, "../../bin/docs-healthcheck.js");
+  const packageVersion = JSON.parse(
+    readFileSync(path.resolve(__dirname, "../../package.json"), "utf8")
+  ).version;
   const fixturesDir = path.resolve(__dirname, "../../fixtures");
   const healthyProject = path.join(fixturesDir, "healthy-project");
   const missingReadme = path.join(fixturesDir, "missing-readme");
@@ -13,7 +17,7 @@ describe("CLI Integration Tests", () => {
 
   it("prints version", () => {
     const output = execSync(`node ${binPath} --version`, { encoding: "utf8" });
-    expect(output.trim()).toBe("2.1.0");
+    expect(output.trim()).toBe(packageVersion);
   });
 
 
