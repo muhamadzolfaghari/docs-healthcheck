@@ -1,4 +1,9 @@
+import { readFileSync } from "node:fs";
 import { defineConfig } from "tsup";
+
+const packageJson = JSON.parse(readFileSync("package.json", "utf8")) as {
+  version: string;
+};
 
 export default defineConfig({
   entry: {
@@ -12,4 +17,7 @@ export default defineConfig({
   minify: false,
   splitting: false,
   shims: true,
+  define: {
+    __DOCS_HEALTHCHECK_VERSION__: JSON.stringify(packageJson.version),
+  },
 });

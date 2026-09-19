@@ -45,6 +45,15 @@ jobs:
       - name: Verify package contents
         run: npm pack --dry-run
 
+      - name: Verify CLI version metadata
+        shell: bash
+        run: |
+          EXPECTED=$(node -p "require('./package.json').version")
+          ACTUAL=$(node ./bin/docs-healthcheck.js --version)
+          echo "package.json version: $EXPECTED"
+          echo "CLI version: $ACTUAL"
+          test "$ACTUAL" = "$EXPECTED"
+
       - name: Check npm publication state
         id: npm
         shell: bash

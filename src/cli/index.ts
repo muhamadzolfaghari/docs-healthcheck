@@ -18,6 +18,13 @@ import { renderFixJsonReport } from "../reporters/fix-json.js";
 import { renderFixMarkdownReport } from "../reporters/fix-markdown.js";
 import { renderRevertTerminalReport } from "../reporters/revert-terminal.js";
 
+declare const __DOCS_HEALTHCHECK_VERSION__: string;
+
+const CLI_VERSION =
+  typeof __DOCS_HEALTHCHECK_VERSION__ === "string"
+    ? __DOCS_HEALTHCHECK_VERSION__
+    : process.env.npm_package_version ?? "0.0.0-dev";
+
 
 export function runCli(argv = process.argv): void {
   const program = new Command();
@@ -27,7 +34,7 @@ export function runCli(argv = process.argv): void {
     .description(
       "Documentation quality gate and auto-repair engine for Markdown repositories."
     )
-    .version("2.1.0");
+    .version(CLI_VERSION);
 
   // Default Command: scan (or --fix)
   program

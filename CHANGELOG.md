@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.2] - 2026-09-19
+
+### Fixed
+- CLI `--version` now derives from `package.json` at build time instead of a hardcoded value.
+- Release CI now verifies the built CLI version matches the package version before publishing.
+- Corrected the post-publish smoke-test failure discovered after the verified `2.1.1` provenance release.
+
+## [2.1.1] - 2026-09-19
+
+### Changed
+- Published through npm Trusted Publishing with GitHub Actions provenance.
+- No functional rule-engine changes from `2.1.0`.
+
 ## [2.1.0] - 2026-09-18
 
 ### ✨ Added — Interactive & Deterministic Auto-Fix Engine
