@@ -9,6 +9,10 @@ on:
     paths:
       - 'package.json'
       - 'package-lock.json'
+      - 'src/**'
+      - 'bin/**'
+      - 'tsup.config.ts'
+      - 'tests/integration/cli.test.ts'
       - '.github/workflows/release.yml'
   workflow_dispatch:
 
