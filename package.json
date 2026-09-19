@@ -1,6 +1,6 @@
 {
   "name": "docs-healthcheck",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Evidence-backed documentation quality gate and deterministic auto-repair engine for Markdown repositories.",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
